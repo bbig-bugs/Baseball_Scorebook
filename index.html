@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baseball Scorebook Pro</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --panel-bg: #ffffff;
+            --border-color: #cbd5e1;
+            --text-main: #1e293b;
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --hit-color: #dcfce7;
+            --hit-text: #166534;
+            --out-color: #fee2e2;
+            --out-text: #991b1b;
+            --bb-color: #e0f2fe;
+            --bb-text: #0369a1;
+            --selected-border: #f59e0b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--primary);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .panel + .panel {
+            margin-top: 20px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 0;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .game-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .game-info label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .game-info input,
+        .scoreboard-input,
+        .mini-input {
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .game-title {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 8px 0 12px;
+        }
+
+        .scoreboard-table {
+            margin-bottom: 16px;
+        }
+
+        .scoreboard-table th,
+        .scoreboard-table td {
+            padding: 6px;
+        }
+
+        .scoreboard-input {
+            width: 42px;
+            padding: 6px;
+            text-align: center;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .mini-input {
+            width: 110px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            table-layout: fixed;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+        }
+
+        .player-input {
+            width: 80px;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .player-input:focus {
+            outline: 1px solid var(--primary);
+            background: #fff;
+        }
+
+        .score-cell {
+            position: relative;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.1s ease;
+            width: 56px;
+            min-width: 56px;
+            height: 56px;
+            padding: 0;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .score-cell:hover {
+            background-color: #f8fafc;
+        }
+
+        .score-half {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            line-height: 1;
+        }
+
+        .score-half.top {
+            clip-path: polygon(0 0, 100% 0, 0 100%);
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 8px 0 0 8px;
+        }
+
+        .score-half.bottom {
+            clip-path: polygon(100% 0, 100% 100%, 0 100%);
+            align-items: flex-end;
+            justify-content: flex-end;
+            padding: 0 8px 8px 0;
+        }
+
+        .score-cell::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom right, transparent calc(50% - 0.5px), var(--border-color) 50%, transparent calc(50% + 0.5px));
+            pointer-events: none;
+        }
+
+        .score-cell.active-top .score-half.top,
+        .score-cell.active-bottom .score-half.bottom {
+            outline: 3px solid var(--selected-border);
+            outline-offset: -3px;
+        }
+
+        .score-half.cell-1B, .score-half.cell-2B, .score-half.cell-3B, .score-half.cell-HR { background-color: var(--hit-color); color: var(--hit-text); }
+        .score-half.cell-SO, .score-half.cell-OUT, .score-half.cell-IFF, .score-half.cell-FO, .score-half.cell-FC { background-color: var(--out-color); color: var(--out-text); }
+        .score-half.cell-BB { background-color: var(--bb-color); color: var(--bb-text); }
+        .score-half.cell-ROE { background-color: #fef9c3; color: #854d0e; }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: #fff;
+            transition: background 0.1s;
+        }
+
+        .btn:active { opacity: 0.8; }
+        .btn-hit { background-color: var(--hit-color); color: var(--hit-text); border-color: #bbf7d0; }
+        .btn-out { background-color: var(--out-color); color: var(--out-text); border-color: #fecaca; }
+        .btn-bb { background-color: var(--bb-color); color: var(--bb-text); border-color: #bae6fd; }
+        .btn-roe { background-color: #fef9c3; color: #854d0e; border-color: #fef08a; }
+        .btn-clear { grid-column: span 2; background-color: #64748b; color: white; }
+        .btn-add-player { background-color: var(--primary); color: white; border-color: var(--primary); }
+        .btn-add-player:hover { background-color: var(--primary-hover); }
+
+        .stats-section {
+            margin-top: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        @media (min-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .stats-grid .panel {
+            height: 100%;
+            box-sizing: border-box;
+            margin-top: 0;
+        }
+
+        .stats-table {
+            table-layout: fixed;
+        }
+
+        .stats-table th { background-color: #e2e8f0; }
+        .stats-table th,
+        .stats-table td {
+            height: 32px;
+            padding: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Baseball Scorebook Pro 数字化记录板</h1>
+    </header>
+
+    <div class="main-layout">
+        <div>
+            <div class="panel">
+                <p class="panel-title">比赛信息与比分</p>
+                <div class="game-info">
+                    <label>日期 <input id="game-date" type="date" onchange="updateGameInfo()"></label>
+                    <label>一队 <input id="team-name-0" type="text" value="一队" onchange="updateTeamName(0, this.value)"></label>
+                    <label>二队 <input id="team-name-1" type="text" value="二队" onchange="updateTeamName(1, this.value)"></label>
+                </div>
+                <div class="game-title" id="game-title">一队 vs 二队</div>
+                <div class="table-responsive">
+                    <table class="scoreboard-table">
+                        <thead>
+                            <tr id="scoreboard-head"></tr>
+                        </thead>
+                        <tbody id="scoreboard-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="teams-container"></div>
+        </div>
+
+        <div class="panel">
+            <p class="panel-title" id="keypad-title">数据录入键盘 (当前未选择格子)</p>
+            <div class="keypad">
+                <button class="btn btn-hit" onclick="inputResult('1B')">一垒安打 (1B)</button>
+                <button class="btn btn-hit" onclick="inputResult('2B')">二垒安打 (2B)</button>
+                <button class="btn btn-hit" onclick="inputResult('3B')">三垒安打 (3B)</button>
+                <button class="btn btn-hit" onclick="inputResult('HR')">本垒打 (HR)</button>
+                <button class="btn btn-bb" onclick="inputResult('BB')">四坏保送 (BB)</button>
+                <button class="btn btn-out" onclick="inputResult('SO')">三振出局 (SO)</button>
+                <button class="btn btn-roe" onclick="inputResult('ROE')">失误上垒 (ROE)</button>
+                <button class="btn btn-out" onclick="inputResult('OUT')">其他出局 (OUT)</button>
+                <button class="btn btn-out" onclick="inputResult('IFF')">内野高飞 (IFF)</button>
+                <button class="btn btn-out" onclick="inputResult('FO')">外野高飞 (FO)</button>
+                <button class="btn btn-out" onclick="inputResult('FC')">野手选择 (FC)</button>
+                <button class="btn btn-clear" onclick="inputResult('')">清除该席记录 (Clear)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-section stats-grid" id="stats-container"></div>
+</div>
+
+<script>
+    const inningCount = 9;
+    const extraScoreColumns = ['R', 'H', 'E'];
+
+    function createLineup() {
+        return Array.from({ length: 10 }, (_, i) => ({
+            id: i + 1,
+            name: `球员 ${i + 1}`,
+            pos: ''
+        }));
+    }
+
+    function createGridData(playerCount) {
+        return Array.from({ length: playerCount }, () => Array.from({ length: inningCount }, () => ['', '']));
+    }
+
+    const teams = ['一队', '二队'].map(name => {
+        const lineup = createLineup();
+        return {
+            name,
+            lineup,
+            gridData: createGridData(lineup.length),
+            inningScores: Array(inningCount).fill(''),
+            hits: '',
+            errors: ''
+        };
+    });
+
+    let selectedCell = { teamIndex: 0, playerIndex: 0, inningIndex: 0, slotIndex: 0 };
+
+    function init() {
+        document.getElementById('game-date').valueAsDate = new Date();
+        renderAll();
+        updateKeypadTitle();
+    }
+
+    function renderAll() {
+        renderGameInfo();
+        renderScoreboard();
+        renderTeams();
+        renderStats();
+    }
+
+    function renderGameInfo() {
+        document.getElementById('game-title').textContent = `${teams[0].name} vs ${teams[1].name}`;
+    }
+
+    function updateGameInfo() {
+        renderGameInfo();
+    }
+
+    function updateTeamName(teamIndex, value) {
+        teams[teamIndex].name = value.trim() || `${teamIndex + 1}队`;
+        renderAll();
+        updateKeypadTitle();
+    }
+
+    function renderScoreboard() {
+        const head = document.getElementById('scoreboard-head');
+        const body = document.getElementById('scoreboard-body');
+        head.innerHTML = `<th>队伍</th>${Array.from({ length: inningCount }, (_, i) => `<th>${i + 1}</th>`).join('')}${extraScoreColumns.map(col => `<th>${col}</th>`).join('')}`;
+        body.innerHTML = '';
+
+        teams.forEach((team, teamIndex) => {
+            const runs = team.inningScores.reduce((sum, val) => sum + (Number(val) || 0), 0);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${team.name}</strong></td>
+                ${team.inningScores.map((score, inningIndex) => `
+                    <td><input class="scoreboard-input" type="number" min="0" value="${score}" onchange="updateInningScore(${teamIndex}, ${inningIndex}, this.value)"></td>
+                `).join('')}
+                <td><strong>${runs}</strong></td>
+                <td><input class="scoreboard-input" type="number" min="0" value="${team.hits}" onchange="updateTeamHits(${teamIndex}, this.value)"></td>
+                <td><input class="scoreboard-input" type="number" min="0" value="${team.errors}" onchange="updateTeamErrors(${teamIndex}, this.value)"></td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    function updateInningScore(teamIndex, inningIndex, value) {
+        teams[teamIndex].inningScores[inningIndex] = value;
+        renderScoreboard();
+    }
+
+    function updateTeamHits(teamIndex, value) {
+        teams[teamIndex].hits = value;
+    }
+
+    function updateTeamErrors(teamIndex, value) {
+        teams[teamIndex].errors = value;
+    }
+
+    function syncLineupIds(teamIndex) {
+        teams[teamIndex].lineup.forEach((player, index) => {
+            player.id = index + 1;
+        });
+    }
+
+    function renderTeams() {
+        const container = document.getElementById('teams-container');
+        container.innerHTML = '';
+        teams.forEach((team, teamIndex) => {
+            const panel = document.createElement('div');
+            panel.className = 'panel';
+            panel.innerHTML = `
+                <p class="panel-title">${team.name}比赛局数矩阵 </p>
+                <div class="toolbar">
+                    <div class="toolbar-controls">
+                        <input id="new-player-name-${teamIndex}" class="mini-input" type="text" placeholder="新成员姓名">
+                        <input id="new-player-pos-${teamIndex}" class="mini-input" type="text" placeholder="守备位置">
+                        <button class="btn btn-add-player" onclick="addPlayer(${teamIndex})">添加新成员棒次</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">棒次</th>
+                                <th style="width: 100px;">姓名</th>
+                                <th style="width: 60px;">守备</th>
+                                <th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>七</th><th>八</th><th>九</th>
+                            </tr>
+                        </thead>
+                        <tbody id="grid-body-${teamIndex}"></tbody>
+                    </table>
+                </div>
+            `;
+            container.appendChild(panel);
+            renderGrid(teamIndex);
+        });
+    }
+
+    function renderGrid(teamIndex) {
+        const team = teams[teamIndex];
+        const tbody = document.getElementById(`grid-body-${teamIndex}`);
+        tbody.innerHTML = '';
+
+        team.lineup.forEach((player, pIdx) => {
+            const tr = document.createElement('tr');
+
+            const orderTd = document.createElement('td');
+            orderTd.innerHTML = `
+                <div style="display:flex; flex-direction:column; gap:6px; align-items:center;">
+                    <span>${player.id}</span>
+                    ${pIdx >= 10 ? `<button class="btn btn-out" style="padding:4px 8px; font-size:12px;" onclick="removePlayer(${teamIndex}, ${pIdx})">删除</button>` : ''}
+                </div>
+            `;
+            tr.appendChild(orderTd);
+
+            const nameTd = document.createElement('td');
+            nameTd.innerHTML = `<input type="text" class="player-input" value="${player.name}" onchange="updatePlayerName(${teamIndex}, ${pIdx}, this.value)">`;
+            tr.appendChild(nameTd);
+
+            const posTd = document.createElement('td');
+            posTd.innerHTML = `<input type="text" class="player-input" style="width:40px;" value="${player.pos}" onchange="updatePlayerPos(${teamIndex}, ${pIdx}, this.value)">`;
+            tr.appendChild(posTd);
+
+            for (let iIdx = 0; iIdx < inningCount; iIdx++) {
+                const cell = document.createElement('td');
+                const vals = team.gridData[pIdx][iIdx];
+                const topVal = vals[0];
+                const bottomVal = vals[1];
+                cell.className = 'score-cell';
+                if (selectedCell.teamIndex === teamIndex && selectedCell.playerIndex === pIdx && selectedCell.inningIndex === iIdx) {
+                    cell.classList.add(selectedCell.slotIndex === 0 ? 'active-top' : 'active-bottom');
+                }
+                cell.innerHTML = `
+                    <div class="score-half top ${topVal ? 'cell-' + topVal : ''}" onclick="event.stopPropagation(); selectCell(${teamIndex}, ${pIdx}, ${iIdx}, 0)">${topVal}</div>
+                    <div class="score-half bottom ${bottomVal ? 'cell-' + bottomVal : ''}" onclick="event.stopPropagation(); selectCell(${teamIndex}, ${pIdx}, ${iIdx}, 1)">${bottomVal}</div>
+                `;
+                cell.onclick = () => selectCell(teamIndex, pIdx, iIdx, 0);
+                tr.appendChild(cell);
+            }
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    function updatePlayerName(teamIndex, playerIndex, val) {
+        teams[teamIndex].lineup[playerIndex].name = val;
+        renderStats();
+        updateKeypadTitle();
+    }
+
+    function updatePlayerPos(teamIndex, playerIndex, val) {
+        teams[teamIndex].lineup[playerIndex].pos = val;
+    }
+
+    function addPlayer(teamIndex) {
+        const team = teams[teamIndex];
+        const nameInput = document.getElementById(`new-player-name-${teamIndex}`);
+        const posInput = document.getElementById(`new-player-pos-${teamIndex}`);
+        const customName = nameInput.value.trim();
+        const customPos = posInput.value.trim();
+
+        team.lineup.push({
+            id: team.lineup.length + 1,
+            name: customName || `球员 ${team.lineup.length + 1}`,
+            pos: customPos
+        });
+        team.gridData.push(Array.from({ length: inningCount }, () => ['', '']));
+        syncLineupIds(teamIndex);
+        nameInput.value = '';
+        posInput.value = '';
+        renderAll();
+        updateKeypadTitle();
+    }
+
+    function removePlayer(teamIndex, playerIndex) {
+        if (playerIndex < 10) return;
+
+        const team = teams[teamIndex];
+        team.lineup.splice(playerIndex, 1);
+        team.gridData.splice(playerIndex, 1);
+        syncLineupIds(teamIndex);
+
+        if (selectedCell.teamIndex === teamIndex) {
+            if (selectedCell.playerIndex >= team.lineup.length) {
+                selectedCell.playerIndex = team.lineup.length - 1;
+            } else if (selectedCell.playerIndex > playerIndex) {
+                selectedCell.playerIndex -= 1;
+            } else if (selectedCell.playerIndex === playerIndex) {
+                selectedCell.playerIndex = Math.min(playerIndex, team.lineup.length - 1);
+            }
+        }
+
+        renderAll();
+        updateKeypadTitle();
+    }
+
+    function selectCell(teamIndex, pIdx, iIdx, slotIdx = 0) {
+        selectedCell = { teamIndex, playerIndex: pIdx, inningIndex: iIdx, slotIndex: slotIdx };
+        renderAll();
+        updateKeypadTitle();
+    }
+
+    function updateKeypadTitle() {
+        const titleEl = document.getElementById('keypad-title');
+        const team = teams[selectedCell.teamIndex];
+        const player = team.lineup[selectedCell.playerIndex];
+        const slotText = selectedCell.slotIndex === 0 ? '上半格第1打席' : '下半格第2打席';
+        titleEl.textContent = `当前录入：${team.name} - [第 ${selectedCell.inningIndex + 1} 局] - ${player.name} - ${slotText}`;
+    }
+
+    function advanceSelectedCell() {
+        const team = teams[selectedCell.teamIndex];
+        selectedCell.slotIndex = 0;
+
+        if (selectedCell.playerIndex < team.lineup.length - 1) {
+            selectedCell.playerIndex += 1;
+        } else {
+            selectedCell.playerIndex = 0;
+            if (selectedCell.inningIndex < inningCount - 1) {
+                selectedCell.inningIndex += 1;
+            }
+        }
+    }
+
+    function inputResult(result) {
+        const { teamIndex, playerIndex, inningIndex, slotIndex } = selectedCell;
+        teams[teamIndex].gridData[playerIndex][inningIndex][slotIndex] = result;
+        advanceSelectedCell();
+        renderAll();
+        updateKeypadTitle();
+    }
+
+    function calculateStats(team, playerIndex) {
+        const rowData = team.gridData[playerIndex];
+        let pa = 0, ab = 0, h = 0, hr = 0, bb = 0, so = 0, roe = 0, totalBases = 0;
+
+        rowData.forEach(cellSlots => {
+            cellSlots.forEach(cell => {
+                if (cell !== '') {
+                    pa++;
+                    if (cell === '1B' || cell === '2B' || cell === '3B' || cell === 'HR') h++;
+                    if (cell === '1B') totalBases += 1;
+                    if (cell === '2B') totalBases += 2;
+                    if (cell === '3B') totalBases += 3;
+                    if (cell === 'HR') {
+                        hr++;
+                        totalBases += 4;
+                    }
+                    if (cell === 'BB') bb++;
+                    if (cell === 'SO') so++;
+                    if (cell === 'ROE') roe++;
+                }
+            });
+        });
+
+        ab = pa - bb;
+        const avg = ab > 0 ? (h / ab).toFixed(3) : '.000';
+        const obp = (ab + bb) > 0 ? ((h + bb) / (ab + bb)).toFixed(3) : '.000';
+        const slg = ab > 0 ? (totalBases / ab).toFixed(3) : '.000';
+        const ops = (Number(obp) + Number(slg)).toFixed(3);
+        const formatRatio = (val) => val.startsWith('0.') ? val.substring(1) : val;
+
+        return { pa, ab, h, hr, bb, so, roe, avg: formatRatio(avg), obp: formatRatio(obp), ops: formatRatio(ops) };
+    }
+
+    function renderStats() {
+        const container = document.getElementById('stats-container');
+        container.innerHTML = '';
+
+        teams.forEach((team, teamIndex) => {
+            const panel = document.createElement('div');
+            panel.className = 'panel';
+            panel.innerHTML = `
+                <p class="panel-title">${team.name}个人打击数据实时统计表</p>
+                <div class="table-responsive">
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>棒次</th><th>姓名</th><th>PA</th><th>AB</th>
+                                <th>H</th><th>HR</th><th>BB</th><th>SO</th><th>ROE</th><th>AVG</th><th>OBP</th><th>OPS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-body-${teamIndex}"></tbody>
+                    </table>
+                </div>
+            `;
+            container.appendChild(panel);
+
+            const tbody = document.getElementById(`stats-body-${teamIndex}`);
+            team.lineup.forEach((player, pIdx) => {
+                const stat = calculateStats(team, pIdx);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${player.id}</td>
+                    <td><strong>${player.name}</strong></td>
+                    <td>${stat.pa}</td>
+                    <td>${stat.ab}</td>
+                    <td>${stat.h}</td>
+                    <td>${stat.hr}</td>
+                    <td>${stat.bb}</td>
+                    <td>${stat.so}</td>
+                    <td>${stat.roe}</td>
+                    <td style="color:#0f172a; font-weight:bold;">${stat.avg}</td>
+                    <td style="color:#0f172a; font-weight:bold;">${stat.obp}</td>
+                    <td style="color:#0f172a; font-weight:bold;">${stat.ops}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+    }
+
+    init();
+</script>
+
+</body>
+</html>
