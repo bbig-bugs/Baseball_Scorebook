@@ -29,6 +29,10 @@
             padding: 20px;
         }
 
+        * {
+            box-sizing: border-box;
+        }
+
         .container {
             max-width: 1500px;
             margin: 0 auto;
@@ -38,6 +42,11 @@
             margin-bottom: 20px;
             border-bottom: 2px solid var(--border-color);
             padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
         header h1 {
@@ -46,15 +55,28 @@
             color: var(--primary);
         }
 
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
         .main-layout {
             display: grid;
             grid-template-columns: 1fr;
             gap: 20px;
         }
 
+        .main-layout > div,
+        .main-layout > .panel,
+        .stats-grid > .panel {
+            min-width: 0;
+        }
+
         @media (min-width: 1024px) {
             .main-layout {
-                grid-template-columns: 2fr 1fr;
+                grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+                align-items: start;
             }
         }
 
@@ -166,7 +188,8 @@
         }
 
         .player-input {
-            width: 80px;
+            width: 100%;
+            min-width: 0;
             border: none;
             background: transparent;
             text-align: center;
@@ -297,6 +320,91 @@
             height: 32px;
             padding: 6px;
         }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+            }
+
+            header h1 {
+                font-size: 20px;
+            }
+
+            .panel {
+                padding: 12px;
+            }
+
+            .game-info {
+                grid-template-columns: 1fr;
+            }
+
+            .game-info label {
+                align-items: stretch;
+                justify-content: space-between;
+            }
+
+            .game-info input,
+            .scoreboard-input,
+            .mini-input {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .toolbar-controls {
+                width: 100%;
+            }
+
+            .toolbar-controls .mini-input,
+            .toolbar-controls .btn-add-player {
+                width: 100%;
+            }
+
+            .score-cell {
+                width: 48px;
+                min-width: 48px;
+                height: 48px;
+            }
+
+            th, td {
+                padding: 6px;
+                font-size: 13px;
+                white-space: nowrap;
+            }
+
+            .scoreboard-table th,
+            .scoreboard-table td {
+                padding: 4px;
+            }
+
+            .scoreboard-input {
+                width: 36px;
+                min-width: 36px;
+                padding: 4px;
+            }
+
+            .player-input {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .lineup-table,
+            .stats-table {
+                min-width: 820px;
+            }
+
+            .keypad {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-clear {
+                grid-column: span 1;
+            }
+
+            .header-actions,
+            .header-actions .btn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -304,6 +412,12 @@
 <div class="container">
     <header>
         <h1>Baseball Scorebook Pro 数字化记录板</h1>
+        <div class="header-actions">
+            <button class="btn btn-add-player" onclick="exportAllData()">一键导出Excel</button>
+            <button class="btn btn-bb" onclick="saveToLocalStorage()">立即保存</button>
+            <button class="btn btn-roe" onclick="changeGame()">换场</button>
+            <button class="btn btn-out" onclick="clearAllData()">一键清空数据</button>
+        </div>
     </header>
 
     <div class="main-layout">
@@ -353,6 +467,158 @@
 <script>
     const inningCount = 9;
     const extraScoreColumns = ['R', 'H', 'E'];
+    const STORAGE_KEY = 'baseball_scorebook_state_v1';
+
+    function getAppState() {
+        return {
+            date: document.getElementById('game-date').value,
+            teams,
+            selectedCell
+        };
+    }
+
+    function saveToLocalStorage() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(getAppState()));
+    }
+
+    function restoreFromLocalStorage() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+
+        try {
+            const state = JSON.parse(raw);
+            if (state?.teams && Array.isArray(state.teams) && state.teams.length === teams.length) {
+                state.teams.forEach((savedTeam, index) => {
+                    teams[index].name = savedTeam.name || teams[index].name;
+                    teams[index].lineup = savedTeam.lineup || teams[index].lineup;
+                    teams[index].gridData = savedTeam.gridData || teams[index].gridData;
+                    teams[index].inningScores = savedTeam.inningScores || teams[index].inningScores;
+                    teams[index].hits = savedTeam.hits ?? teams[index].hits;
+                    teams[index].errors = savedTeam.errors ?? teams[index].errors;
+                });
+            }
+            if (state?.selectedCell) {
+                selectedCell = state.selectedCell;
+            }
+            if (state?.date) {
+                document.getElementById('game-date').value = state.date;
+            }
+        } catch (error) {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+    }
+
+    function scheduleSave() {
+        clearTimeout(scheduleSave.timer);
+        scheduleSave.timer = setTimeout(saveToLocalStorage, 200);
+    }
+
+    function escapeExcelCell(value) {
+        return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function buildHtmlTable(title, headers, rows) {
+        return `
+            <h2>${escapeExcelCell(title)}</h2>
+            <table border="1">
+                <thead><tr>${headers.map(header => `<th>${escapeExcelCell(header)}</th>`).join('')}</tr></thead>
+                <tbody>
+                    ${rows.map(row => `<tr>${row.map(cell => `<td>${escapeExcelCell(cell)}</td>`).join('')}</tr>`).join('')}
+                </tbody>
+            </table>
+            <br>
+        `;
+    }
+
+    function exportAllData() {
+        saveToLocalStorage();
+        const date = document.getElementById('game-date').value;
+        const scoreboardRows = teams.map(team => {
+            const runs = team.inningScores.reduce((sum, val) => sum + (Number(val) || 0), 0);
+            return [team.name, ...team.inningScores, runs, team.hits, team.errors];
+        });
+        const scoreHeaders = ['队伍', ...Array.from({ length: inningCount }, (_, i) => `${i + 1}`), ...extraScoreColumns];
+
+        const teamTables = teams.map(team => {
+            const lineupHeaders = ['棒次', '姓名', '守备', ...Array.from({ length: inningCount }, (_, i) => `第${i + 1}局-第1打席/第2打席`)];
+            const lineupRows = team.lineup.map((player, playerIndex) => [
+                player.id,
+                player.name,
+                player.pos,
+                ...team.gridData[playerIndex].map(cell => cell.filter(Boolean).join(' / '))
+            ]);
+
+            const statsHeaders = ['棒次', '姓名', 'PA', 'AB', 'H', 'HR', 'BB', 'SO', 'ROE', 'AVG', 'OBP', 'OPS'];
+            const statsRows = team.lineup.map((player, playerIndex) => {
+                const stat = calculateStats(team, playerIndex);
+                return [player.id, player.name, stat.pa, stat.ab, stat.h, stat.hr, stat.bb, stat.so, stat.roe, stat.avg, stat.obp, stat.ops];
+            });
+
+            return buildHtmlTable(`${team.name} 比赛局数矩阵`, lineupHeaders, lineupRows) + buildHtmlTable(`${team.name} 个人打击数据统计`, statsHeaders, statsRows);
+        }).join('');
+
+        const html = `
+            <html>
+            <head><meta charset="UTF-8"></head>
+            <body>
+                <h1>Baseball Scorebook Pro 数据导出</h1>
+                <p>导出时间：${escapeExcelCell(new Date().toLocaleString())}</p>
+                <p>比赛日期：${escapeExcelCell(date)}</p>
+                <p>比赛：${escapeExcelCell(`${teams[0].name} vs ${teams[1].name}`)}</p>
+                ${buildHtmlTable('比赛信息与比分', scoreHeaders, scoreboardRows)}
+                ${teamTables}
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `baseball-scorebook-${date || 'export'}.xls`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function resetTeam(team, teamIndex) {
+        team.name = `${teamIndex + 1}队`;
+        team.lineup = createLineup();
+        team.gridData = createGridData(team.lineup.length);
+        team.inningScores = Array(inningCount).fill('');
+        team.hits = '';
+        team.errors = '';
+    }
+
+    function resetGameOnly(team) {
+        team.gridData = createGridData(team.lineup.length);
+        team.inningScores = Array(inningCount).fill('');
+        team.hits = '';
+        team.errors = '';
+    }
+
+    function changeGame() {
+        if (!confirm('确定要换场吗？将清空比分和打席记录，但保留队名、球员姓名和守备位置。')) return;
+
+        teams.forEach(resetGameOnly);
+        selectedCell = { teamIndex: 0, playerIndex: 0, inningIndex: 0, slotIndex: 0 };
+        document.getElementById('game-date').valueAsDate = new Date();
+        renderAll();
+        updateKeypadTitle();
+        saveToLocalStorage();
+    }
+
+    function clearAllData() {
+        if (!confirm('确定要清空所有已输入的数据吗？此操作不可撤销。')) return;
+
+        teams.forEach(resetTeam);
+        selectedCell = { teamIndex: 0, playerIndex: 0, inningIndex: 0, slotIndex: 0 };
+        document.getElementById('game-date').valueAsDate = new Date();
+        document.getElementById('team-name-0').value = teams[0].name;
+        document.getElementById('team-name-1').value = teams[1].name;
+        renderAll();
+        updateKeypadTitle();
+        saveToLocalStorage();
+    }
 
     function createLineup() {
         return Array.from({ length: 10 }, (_, i) => ({
@@ -381,9 +647,14 @@
     let selectedCell = { teamIndex: 0, playerIndex: 0, inningIndex: 0, slotIndex: 0 };
 
     function init() {
-        document.getElementById('game-date').valueAsDate = new Date();
+        restoreFromLocalStorage();
+        if (!document.getElementById('game-date').value) {
+            document.getElementById('game-date').valueAsDate = new Date();
+        }
         renderAll();
         updateKeypadTitle();
+        saveToLocalStorage();
+        window.addEventListener('beforeunload', saveToLocalStorage);
     }
 
     function renderAll() {
@@ -399,12 +670,14 @@
 
     function updateGameInfo() {
         renderGameInfo();
+        scheduleSave();
     }
 
     function updateTeamName(teamIndex, value) {
         teams[teamIndex].name = value.trim() || `${teamIndex + 1}队`;
         renderAll();
         updateKeypadTitle();
+        scheduleSave();
     }
 
     function renderScoreboard() {
@@ -432,14 +705,17 @@
     function updateInningScore(teamIndex, inningIndex, value) {
         teams[teamIndex].inningScores[inningIndex] = value;
         renderScoreboard();
+        scheduleSave();
     }
 
     function updateTeamHits(teamIndex, value) {
         teams[teamIndex].hits = value;
+        scheduleSave();
     }
 
     function updateTeamErrors(teamIndex, value) {
         teams[teamIndex].errors = value;
+        scheduleSave();
     }
 
     function syncLineupIds(teamIndex) {
@@ -464,7 +740,7 @@
                     </div>
                 </div>
                 <div class="table-responsive">
-                    <table>
+                    <table class="lineup-table">
                         <thead>
                             <tr>
                                 <th style="width: 50px;">棒次</th>
@@ -532,10 +808,12 @@
         teams[teamIndex].lineup[playerIndex].name = val;
         renderStats();
         updateKeypadTitle();
+        scheduleSave();
     }
 
     function updatePlayerPos(teamIndex, playerIndex, val) {
         teams[teamIndex].lineup[playerIndex].pos = val;
+        scheduleSave();
     }
 
     function addPlayer(teamIndex) {
@@ -556,6 +834,7 @@
         posInput.value = '';
         renderAll();
         updateKeypadTitle();
+        scheduleSave();
     }
 
     function removePlayer(teamIndex, playerIndex) {
@@ -578,6 +857,7 @@
 
         renderAll();
         updateKeypadTitle();
+        scheduleSave();
     }
 
     function selectCell(teamIndex, pIdx, iIdx, slotIdx = 0) {
@@ -614,6 +894,7 @@
         advanceSelectedCell();
         renderAll();
         updateKeypadTitle();
+        scheduleSave();
     }
 
     function calculateStats(team, playerIndex) {
