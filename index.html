@@ -261,6 +261,30 @@
         .score-half.cell-BB { background-color: var(--bb-color); color: var(--bb-text); }
         .score-half.cell-ROE { background-color: #fef9c3; color: #854d0e; }
 
+        .result-popover {
+            position: fixed;
+            z-index: 1000;
+            display: none;
+            width: min(320px, calc(100vw - 24px));
+            max-height: min(420px, calc(100vh - 24px));
+            overflow-y: auto;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+        }
+
+        .result-popover.open {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .result-popover .btn-clear {
+            grid-column: span 2;
+        }
+
         .keypad {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -464,6 +488,8 @@
     <div class="stats-section stats-grid" id="stats-container"></div>
 </div>
 
+<div class="result-popover" id="result-popover"></div>
+
 <script>
     const inningCount = 9;
     const extraScoreColumns = ['R', 'H', 'E'];
@@ -655,6 +681,11 @@
         updateKeypadTitle();
         saveToLocalStorage();
         window.addEventListener('beforeunload', saveToLocalStorage);
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.result-popover') && !event.target.closest('.score-cell')) {
+                closeResultPicker();
+            }
+        });
     }
 
     function renderAll() {
@@ -793,10 +824,10 @@
                     cell.classList.add(selectedCell.slotIndex === 0 ? 'active-top' : 'active-bottom');
                 }
                 cell.innerHTML = `
-                    <div class="score-half top ${topVal ? 'cell-' + topVal : ''}" onclick="event.stopPropagation(); selectCell(${teamIndex}, ${pIdx}, ${iIdx}, 0)">${topVal}</div>
-                    <div class="score-half bottom ${bottomVal ? 'cell-' + bottomVal : ''}" onclick="event.stopPropagation(); selectCell(${teamIndex}, ${pIdx}, ${iIdx}, 1)">${bottomVal}</div>
+                    <div class="score-half top ${topVal ? 'cell-' + topVal : ''}" onclick="event.stopPropagation(); openResultPicker(event, ${teamIndex}, ${pIdx}, ${iIdx}, 0)">${topVal}</div>
+                    <div class="score-half bottom ${bottomVal ? 'cell-' + bottomVal : ''}" onclick="event.stopPropagation(); openResultPicker(event, ${teamIndex}, ${pIdx}, ${iIdx}, 1)">${bottomVal}</div>
                 `;
-                cell.onclick = () => selectCell(teamIndex, pIdx, iIdx, 0);
+                cell.onclick = (event) => openResultPicker(event, teamIndex, pIdx, iIdx, 0);
                 tr.appendChild(cell);
             }
 
@@ -813,6 +844,51 @@
 
     function updatePlayerPos(teamIndex, playerIndex, val) {
         teams[teamIndex].lineup[playerIndex].pos = val;
+        scheduleSave();
+    }
+
+    const resultOptions = [
+        { value: '1B', label: '一垒安打 (1B)', className: 'btn-hit' },
+        { value: '2B', label: '二垒安打 (2B)', className: 'btn-hit' },
+        { value: '3B', label: '三垒安打 (3B)', className: 'btn-hit' },
+        { value: 'HR', label: '本垒打 (HR)', className: 'btn-hit' },
+        { value: 'BB', label: '四坏保送 (BB)', className: 'btn-bb' },
+        { value: 'SO', label: '三振出局 (SO)', className: 'btn-out' },
+        { value: 'ROE', label: '失误上垒 (ROE)', className: 'btn-roe' },
+        { value: 'OUT', label: '其他出局 (OUT)', className: 'btn-out' },
+        { value: 'IFF', label: '内野高飞 (IFF)', className: 'btn-out' },
+        { value: 'FO', label: '外野高飞 (FO)', className: 'btn-out' },
+        { value: 'FC', label: '野手选择 (FC)', className: 'btn-out' },
+        { value: '', label: '清除该席记录', className: 'btn-clear' }
+    ];
+
+    function closeResultPicker() {
+        document.getElementById('result-popover').classList.remove('open');
+    }
+
+    function openResultPicker(event, teamIndex, playerIndex, inningIndex, slotIndex) {
+        selectCell(teamIndex, playerIndex, inningIndex, slotIndex, false);
+
+        const popover = document.getElementById('result-popover');
+        popover.innerHTML = resultOptions.map(option => `
+            <button class="btn ${option.className}" onclick="chooseResultFromPicker('${option.value}')">${option.label}</button>
+        `).join('');
+
+        const rect = event.currentTarget.getBoundingClientRect();
+        const popoverWidth = Math.min(320, window.innerWidth - 24);
+        const left = Math.min(Math.max(12, rect.left), window.innerWidth - popoverWidth - 12);
+        const top = rect.bottom + 8;
+        popover.style.left = `${left}px`;
+        popover.style.top = `${Math.min(top, window.innerHeight - 432)}px`;
+        popover.classList.add('open');
+    }
+
+    function chooseResultFromPicker(result) {
+        const { teamIndex, playerIndex, inningIndex, slotIndex } = selectedCell;
+        teams[teamIndex].gridData[playerIndex][inningIndex][slotIndex] = result;
+        closeResultPicker();
+        renderAll();
+        updateKeypadTitle();
         scheduleSave();
     }
 
@@ -860,10 +936,12 @@
         scheduleSave();
     }
 
-    function selectCell(teamIndex, pIdx, iIdx, slotIdx = 0) {
+    function selectCell(teamIndex, pIdx, iIdx, slotIdx = 0, updateUi = true) {
         selectedCell = { teamIndex, playerIndex: pIdx, inningIndex: iIdx, slotIndex: slotIdx };
-        renderAll();
-        updateKeypadTitle();
+        if (updateUi) {
+            renderAll();
+            updateKeypadTitle();
+        }
     }
 
     function updateKeypadTitle() {
