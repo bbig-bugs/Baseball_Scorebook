@@ -256,8 +256,8 @@
             outline-offset: -3px;
         }
 
-        .score-half.cell-1B, .score-half.cell-2B, .score-half.cell-3B, .score-half.cell-HR { background-color: var(--hit-color); color: var(--hit-text); }
-        .score-half.cell-SO, .score-half.cell-OUT, .score-half.cell-IFF, .score-half.cell-FO, .score-half.cell-FC { background-color: var(--out-color); color: var(--out-text); }
+        .score-half[class*="cell-1B"], .score-half[class*="cell-2B"], .score-half[class*="cell-3B"], .score-half[class*="cell-HR"] { background-color: var(--hit-color); color: var(--hit-text); }
+        .score-half.cell-SO, .score-half.cell-OUT, .score-half.cell-IFF, .score-half.cell-FO, .score-half.cell-FC, .score-half.cell-DP, .score-half[class*="cell-SF"] { background-color: var(--out-color); color: var(--out-text); }
         .score-half.cell-BB { background-color: var(--bb-color); color: var(--bb-text); }
         .score-half.cell-ROE { background-color: #fef9c3; color: #854d0e; }
 
@@ -265,24 +265,41 @@
             position: fixed;
             z-index: 1000;
             display: none;
-            width: min(320px, calc(100vw - 24px));
-            max-height: min(420px, calc(100vh - 24px));
+            width: 150px;
+            max-height: 190px;
             overflow-y: auto;
-            padding: 10px;
             background: #fff;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+            border: 1px solid #111;
+            border-radius: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
         }
 
         .result-popover.open {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
+            display: block;
         }
 
-        .result-popover .btn-clear {
-            grid-column: span 2;
+        .result-option {
+            display: block;
+            width: 100%;
+            padding: 8px 10px;
+            border: none;
+            border-bottom: 1px solid #ddd;
+            background: #fff;
+            color: #111;
+            font-size: 15px;
+            line-height: 1.2;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .result-option:last-child {
+            border-bottom: none;
+        }
+
+        .result-option:hover,
+        .result-option:active {
+            background: #0ea5e9;
+            color: #fff;
         }
 
         .keypad {
@@ -465,24 +482,6 @@
             </div>
             <div id="teams-container"></div>
         </div>
-
-        <div class="panel">
-            <p class="panel-title" id="keypad-title">数据录入键盘 (当前未选择格子)</p>
-            <div class="keypad">
-                <button class="btn btn-hit" onclick="inputResult('1B')">一垒安打 (1B)</button>
-                <button class="btn btn-hit" onclick="inputResult('2B')">二垒安打 (2B)</button>
-                <button class="btn btn-hit" onclick="inputResult('3B')">三垒安打 (3B)</button>
-                <button class="btn btn-hit" onclick="inputResult('HR')">本垒打 (HR)</button>
-                <button class="btn btn-bb" onclick="inputResult('BB')">四坏保送 (BB)</button>
-                <button class="btn btn-out" onclick="inputResult('SO')">三振出局 (SO)</button>
-                <button class="btn btn-roe" onclick="inputResult('ROE')">失误上垒 (ROE)</button>
-                <button class="btn btn-out" onclick="inputResult('OUT')">其他出局 (OUT)</button>
-                <button class="btn btn-out" onclick="inputResult('IFF')">内野高飞 (IFF)</button>
-                <button class="btn btn-out" onclick="inputResult('FO')">外野高飞 (FO)</button>
-                <button class="btn btn-out" onclick="inputResult('FC')">野手选择 (FC)</button>
-                <button class="btn btn-clear" onclick="inputResult('')">清除该席记录 (Clear)</button>
-            </div>
-        </div>
     </div>
 
     <div class="stats-section stats-grid" id="stats-container"></div>
@@ -490,6 +489,7 @@
 
 <div class="result-popover" id="result-popover"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
     const inningCount = 9;
     const extraScoreColumns = ['R', 'H', 'E'];
@@ -539,33 +539,36 @@
         scheduleSave.timer = setTimeout(saveToLocalStorage, 200);
     }
 
-    function escapeExcelCell(value) {
-        return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    function buildHtmlTable(title, headers, rows) {
-        return `
-            <h2>${escapeExcelCell(title)}</h2>
-            <table border="1">
-                <thead><tr>${headers.map(header => `<th>${escapeExcelCell(header)}</th>`).join('')}</tr></thead>
-                <tbody>
-                    ${rows.map(row => `<tr>${row.map(cell => `<td>${escapeExcelCell(cell)}</td>`).join('')}</tr>`).join('')}
-                </tbody>
-            </table>
-            <br>
-        `;
+    function addSheet(workbook, name, rows) {
+        const worksheet = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(workbook, worksheet, name.slice(0, 31));
     }
 
     function exportAllData() {
         saveToLocalStorage();
+        if (typeof XLSX === 'undefined') {
+            alert('Excel 导出库加载失败，请确认网络可访问后重试。');
+            return;
+        }
+
         const date = document.getElementById('game-date').value;
+        const workbook = XLSX.utils.book_new();
+        const scoreHeaders = ['队伍', ...Array.from({ length: inningCount }, (_, i) => `${i + 1}`), ...extraScoreColumns];
         const scoreboardRows = teams.map(team => {
             const runs = team.inningScores.reduce((sum, val) => sum + (Number(val) || 0), 0);
             return [team.name, ...team.inningScores, runs, team.hits, team.errors];
         });
-        const scoreHeaders = ['队伍', ...Array.from({ length: inningCount }, (_, i) => `${i + 1}`), ...extraScoreColumns];
 
-        const teamTables = teams.map(team => {
+        addSheet(workbook, '比赛信息与比分', [
+            ['导出时间', new Date().toLocaleString()],
+            ['比赛日期', date],
+            ['比赛', `${teams[0].name} vs ${teams[1].name}`],
+            [],
+            scoreHeaders,
+            ...scoreboardRows
+        ]);
+
+        teams.forEach(team => {
             const lineupHeaders = ['棒次', '姓名', '守备', ...Array.from({ length: inningCount }, (_, i) => `第${i + 1}局-第1打席/第2打席`)];
             const lineupRows = team.lineup.map((player, playerIndex) => [
                 player.id,
@@ -573,37 +576,17 @@
                 player.pos,
                 ...team.gridData[playerIndex].map(cell => cell.filter(Boolean).join(' / '))
             ]);
+            addSheet(workbook, `${team.name}局数矩阵`, [lineupHeaders, ...lineupRows]);
 
-            const statsHeaders = ['棒次', '姓名', 'PA', 'AB', 'H', 'HR', 'BB', 'SO', 'ROE', 'AVG', 'OBP', 'OPS'];
+            const statsHeaders = ['棒次', '姓名', 'PA', 'AB', 'H', 'HR', 'RBI', 'BB', 'SO', 'DP', 'SF', 'ROE', 'AVG', 'OBP', 'OPS'];
             const statsRows = team.lineup.map((player, playerIndex) => {
                 const stat = calculateStats(team, playerIndex);
-                return [player.id, player.name, stat.pa, stat.ab, stat.h, stat.hr, stat.bb, stat.so, stat.roe, stat.avg, stat.obp, stat.ops];
+                return [player.id, player.name, stat.pa, stat.ab, stat.h, stat.hr, stat.rbi, stat.bb, stat.so, stat.dp, stat.sf, stat.roe, stat.avg, stat.obp, stat.ops];
             });
+            addSheet(workbook, `${team.name}打击统计`, [statsHeaders, ...statsRows]);
+        });
 
-            return buildHtmlTable(`${team.name} 比赛局数矩阵`, lineupHeaders, lineupRows) + buildHtmlTable(`${team.name} 个人打击数据统计`, statsHeaders, statsRows);
-        }).join('');
-
-        const html = `
-            <html>
-            <head><meta charset="UTF-8"></head>
-            <body>
-                <h1>Baseball Scorebook Pro 数据导出</h1>
-                <p>导出时间：${escapeExcelCell(new Date().toLocaleString())}</p>
-                <p>比赛日期：${escapeExcelCell(date)}</p>
-                <p>比赛：${escapeExcelCell(`${teams[0].name} vs ${teams[1].name}`)}</p>
-                ${buildHtmlTable('比赛信息与比分', scoreHeaders, scoreboardRows)}
-                ${teamTables}
-            </body>
-            </html>
-        `;
-
-        const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `baseball-scorebook-${date || 'export'}.xls`;
-        a.click();
-        URL.revokeObjectURL(url);
+        XLSX.writeFile(workbook, `baseball-scorebook-${date || 'export'}.xlsx`);
     }
 
     function resetTeam(team, teamIndex) {
@@ -684,6 +667,21 @@
         document.addEventListener('click', (event) => {
             if (!event.target.closest('.result-popover') && !event.target.closest('.score-cell')) {
                 closeResultPicker();
+            }
+        });
+        const popover = document.getElementById('result-popover');
+        popover.addEventListener('click', function (event) {
+            event.stopPropagation();
+            const resultButton = event.target.closest('[data-result]');
+            if (resultButton) {
+                chooseResultFromPicker(resultButton.dataset.result);
+                return;
+            }
+            const rbiButton = event.target.closest('[data-rbi]');
+            if (rbiButton) {
+                const rbi = Number(rbiButton.dataset.rbi);
+                const value = rbi === 0 ? pendingRbiBaseResult : pendingRbiBaseResult + '-' + rbi;
+                setSelectedCellResult(value);
             }
         });
     }
@@ -823,9 +821,13 @@
                 if (selectedCell.teamIndex === teamIndex && selectedCell.playerIndex === pIdx && selectedCell.inningIndex === iIdx) {
                     cell.classList.add(selectedCell.slotIndex === 0 ? 'active-top' : 'active-bottom');
                 }
+                const displayTopVal = topVal;
+                const displayBottomVal = bottomVal;
+                const topClass = topVal ? 'cell-' + topVal.split('-')[0] : '';
+                const bottomClass = bottomVal ? 'cell-' + bottomVal.split('-')[0] : '';
                 cell.innerHTML = `
-                    <div class="score-half top ${topVal ? 'cell-' + topVal : ''}" onclick="event.stopPropagation(); openResultPicker(event, ${teamIndex}, ${pIdx}, ${iIdx}, 0)">${topVal}</div>
-                    <div class="score-half bottom ${bottomVal ? 'cell-' + bottomVal : ''}" onclick="event.stopPropagation(); openResultPicker(event, ${teamIndex}, ${pIdx}, ${iIdx}, 1)">${bottomVal}</div>
+                    <div class="score-half top ${topClass}" onclick="event.stopPropagation(); openResultPicker(event, ${teamIndex}, ${pIdx}, ${iIdx}, 0)">${displayTopVal}</div>
+                    <div class="score-half bottom ${bottomClass}" onclick="event.stopPropagation(); openResultPicker(event, ${teamIndex}, ${pIdx}, ${iIdx}, 1)">${displayBottomVal}</div>
                 `;
                 cell.onclick = (event) => openResultPicker(event, teamIndex, pIdx, iIdx, 0);
                 tr.appendChild(cell);
@@ -848,19 +850,23 @@
     }
 
     const resultOptions = [
-        { value: '1B', label: '一垒安打 (1B)', className: 'btn-hit' },
-        { value: '2B', label: '二垒安打 (2B)', className: 'btn-hit' },
-        { value: '3B', label: '三垒安打 (3B)', className: 'btn-hit' },
-        { value: 'HR', label: '本垒打 (HR)', className: 'btn-hit' },
-        { value: 'BB', label: '四坏保送 (BB)', className: 'btn-bb' },
-        { value: 'SO', label: '三振出局 (SO)', className: 'btn-out' },
-        { value: 'ROE', label: '失误上垒 (ROE)', className: 'btn-roe' },
-        { value: 'OUT', label: '其他出局 (OUT)', className: 'btn-out' },
-        { value: 'IFF', label: '内野高飞 (IFF)', className: 'btn-out' },
-        { value: 'FO', label: '外野高飞 (FO)', className: 'btn-out' },
-        { value: 'FC', label: '野手选择 (FC)', className: 'btn-out' },
-        { value: '', label: '清除该席记录', className: 'btn-clear' }
+        { value: '1B', label: '一垒安打 (1B)', rbi: true },
+        { value: '2B', label: '二垒安打 (2B)', rbi: true },
+        { value: '3B', label: '三垒安打 (3B)', rbi: true },
+        { value: 'HR', label: '本垒打 (HR)', rbi: true },
+        { value: 'SF', label: '高飞牺牲打 (SF)', rbi: true },
+        { value: 'BB', label: '四坏保送 (BB)' },
+        { value: 'SO', label: '三振出局 (SO)' },
+        { value: 'DP', label: '双杀出局 (DP)' },
+        { value: 'ROE', label: '失误上垒 (ROE)' },
+        { value: 'OUT', label: '其他出局 (OUT)' },
+        { value: 'IFF', label: '内野高飞 (IFF)' },
+        { value: 'FO', label: '外野高飞 (FO)' },
+        { value: 'FC', label: '野手选择 (FC)' },
+        { value: '', label: '清除该席记录' }
     ];
+
+    const rbiOptions = [0, 1, 2, 3, 4];
 
     function closeResultPicker() {
         document.getElementById('result-popover').classList.remove('open');
@@ -871,19 +877,49 @@
 
         const popover = document.getElementById('result-popover');
         popover.innerHTML = resultOptions.map(option => `
-            <button class="btn ${option.className}" onclick="chooseResultFromPicker('${option.value}')">${option.label}</button>
+            <button class="result-option" data-result="${option.value}">${option.label}</button>
         `).join('');
 
-        const rect = event.currentTarget.getBoundingClientRect();
-        const popoverWidth = Math.min(320, window.innerWidth - 24);
-        const left = Math.min(Math.max(12, rect.left), window.innerWidth - popoverWidth - 12);
-        const top = rect.bottom + 8;
-        popover.style.left = `${left}px`;
-        popover.style.top = `${Math.min(top, window.innerHeight - 432)}px`;
+        const rect = event.currentTarget.closest('.score-cell').getBoundingClientRect();
+        const popoverWidth = 150;
+        const popoverHeight = 190;
+        const preferredLeft = rect.right;
+        const preferredTop = rect.bottom;
+        const left = Math.min(preferredLeft, window.innerWidth - popoverWidth - 8);
+        const top = Math.min(preferredTop, window.innerHeight - popoverHeight - 8);
+        popover.style.left = `${Math.max(8, left)}px`;
+        popover.style.top = `${Math.max(8, top)}px`;
         popover.classList.add('open');
     }
 
     function chooseResultFromPicker(result) {
+        const option = resultOptions.find(item => item.value === result);
+        if (option && option.rbi === true) {
+            showRbiPicker(result);
+            return;
+        }
+        setSelectedCellResult(result);
+    }
+
+    function showRbiPicker(result) {
+        pendingRbiBaseResult = result;
+        const popover = document.getElementById('result-popover');
+        popover.innerHTML = '<div class="result-option" style="font-weight:700; cursor:default;">选择 RBI</div>' +
+            rbiOptions.map(function (rbi) {
+                return '<button class="result-option" data-rbi="' + rbi + '">RBI ' + rbi + '</button>';
+            }).join('') +
+            '<button class="result-option" onclick="openResultPickerFromSelection()">返回</button>';
+        popover.classList.add('open');
+    }
+
+    function openResultPickerFromSelection() {
+        const cell = document.querySelector('.score-cell.active-top, .score-cell.active-bottom');
+        if (!cell) return;
+        const fakeEvent = { currentTarget: cell };
+        openResultPicker(fakeEvent, selectedCell.teamIndex, selectedCell.playerIndex, selectedCell.inningIndex, selectedCell.slotIndex);
+    }
+
+    function setSelectedCellResult(result) {
         const { teamIndex, playerIndex, inningIndex, slotIndex } = selectedCell;
         teams[teamIndex].gridData[playerIndex][inningIndex][slotIndex] = result;
         closeResultPicker();
@@ -946,6 +982,8 @@
 
     function updateKeypadTitle() {
         const titleEl = document.getElementById('keypad-title');
+        if (!titleEl) return;
+
         const team = teams[selectedCell.teamIndex];
         const player = team.lineup[selectedCell.playerIndex];
         const slotText = selectedCell.slotIndex === 0 ? '上半格第1打席' : '下半格第2打席';
@@ -977,35 +1015,42 @@
 
     function calculateStats(team, playerIndex) {
         const rowData = team.gridData[playerIndex];
-        let pa = 0, ab = 0, h = 0, hr = 0, bb = 0, so = 0, roe = 0, totalBases = 0;
+        let pa = 0, ab = 0, h = 0, hr = 0, rbi = 0, bb = 0, so = 0, dp = 0, sf = 0, roe = 0, totalBases = 0;
+        const hitTypes = ['1B', '2B', '3B', 'HR'];
 
         rowData.forEach(cellSlots => {
             cellSlots.forEach(cell => {
                 if (cell !== '') {
+                    const [result, rbiText = '0'] = cell.split('-');
+                    const rbiValue = Number.parseInt(rbiText, 10);
                     pa++;
-                    if (cell === '1B' || cell === '2B' || cell === '3B' || cell === 'HR') h++;
-                    if (cell === '1B') totalBases += 1;
-                    if (cell === '2B') totalBases += 2;
-                    if (cell === '3B') totalBases += 3;
-                    if (cell === 'HR') {
+                    rbi += Number.isNaN(rbiValue) ? 0 : rbiValue;
+
+                    if (hitTypes.includes(result)) h++;
+                    if (result === '1B') totalBases += 1;
+                    if (result === '2B') totalBases += 2;
+                    if (result === '3B') totalBases += 3;
+                    if (result === 'HR') {
                         hr++;
                         totalBases += 4;
                     }
-                    if (cell === 'BB') bb++;
-                    if (cell === 'SO') so++;
-                    if (cell === 'ROE') roe++;
+                    if (result === 'BB') bb++;
+                    if (result === 'SO') so++;
+                    if (result === 'DP') dp++;
+                    if (result === 'SF') sf++;
+                    if (result === 'ROE') roe++;
                 }
             });
         });
 
-        ab = pa - bb;
+        ab = pa - bb - sf;
         const avg = ab > 0 ? (h / ab).toFixed(3) : '.000';
-        const obp = (ab + bb) > 0 ? ((h + bb) / (ab + bb)).toFixed(3) : '.000';
+        const obp = (ab + bb + sf) > 0 ? ((h + bb) / (ab + bb + sf)).toFixed(3) : '.000';
         const slg = ab > 0 ? (totalBases / ab).toFixed(3) : '.000';
         const ops = (Number(obp) + Number(slg)).toFixed(3);
         const formatRatio = (val) => val.startsWith('0.') ? val.substring(1) : val;
 
-        return { pa, ab, h, hr, bb, so, roe, avg: formatRatio(avg), obp: formatRatio(obp), ops: formatRatio(ops) };
+        return { pa, ab, h, hr, rbi, bb, so, dp, sf, roe, avg: formatRatio(avg), obp: formatRatio(obp), ops: formatRatio(ops) };
     }
 
     function renderStats() {
@@ -1022,7 +1067,7 @@
                         <thead>
                             <tr>
                                 <th>棒次</th><th>姓名</th><th>PA</th><th>AB</th>
-                                <th>H</th><th>HR</th><th>BB</th><th>SO</th><th>ROE</th><th>AVG</th><th>OBP</th><th>OPS</th>
+                                <th>H</th><th>HR</th><th>RBI</th><th>BB</th><th>SO</th><th>ROE</th><th>AVG</th><th>OBP</th><th>OPS</th>
                             </tr>
                         </thead>
                         <tbody id="stats-body-${teamIndex}"></tbody>
@@ -1042,6 +1087,7 @@
                     <td>${stat.ab}</td>
                     <td>${stat.h}</td>
                     <td>${stat.hr}</td>
+                    <td>${stat.rbi}</td>
                     <td>${stat.bb}</td>
                     <td>${stat.so}</td>
                     <td>${stat.roe}</td>
