@@ -2344,6 +2344,30 @@
         return rows.sort((a, b) => a.inningIndex - b.inningIndex || a.teamIndex - b.teamIndex || a.playerIndex - b.playerIndex);
     }
 
+    function getProgressRows() {
+        const rows = [];
+        teams.forEach((team, teamIndex) => {
+            team.lineup.forEach((player, playerIndex) => {
+                Array.from({ length: inningCount }, (_, inningIndex) => {
+                    const result = team.gridData?.[playerIndex]?.[inningIndex]?.[0] || '';
+                    const savedDetail = team.playDetails?.[playerIndex]?.[inningIndex];
+                    if (!result && !savedDetail) return;
+
+                    rows.push({
+                        teamIndex,
+                        playerIndex,
+                        inningIndex,
+                        team: team.name,
+                        batter: player?.name || `球员 ${playerIndex + 1}`,
+                        result,
+                        detail: normalizePlayDetail(savedDetail) || createPlayDetail()
+                    });
+                });
+            });
+        });
+        return rows.sort((a, b) => a.inningIndex - b.inningIndex || a.teamIndex - b.teamIndex || a.playerIndex - b.playerIndex);
+    }
+
     function getResultDisplay(result) {
         const [baseResult = '', rbiText = '0'] = String(result || '').split('-');
         const option = baseResult
@@ -2369,7 +2393,7 @@
         return `${reason ? `${reason} ` : ''}${route}`;
     }
 
-    function getProgressGroups(rows = getPlayLogRows()) {
+    function getProgressGroups(rows = getProgressRows()) {
         const groups = [];
         rows.forEach(row => {
             const key = `${row.inningIndex}-${row.teamIndex}`;
@@ -2442,7 +2466,7 @@
         const container = document.getElementById('play-log-container');
         const rows = getPlayLogRows();
         container.innerHTML = `
-            ${renderGameProgress(rows)}
+            ${renderGameProgress()}
             <div class="panel">
                 <p class="panel-title">逐球详细记录</p>
                 ${rows.length ? `
