@@ -615,7 +615,7 @@
             overflow: hidden;
             border: 2px solid #166534;
             border-radius: 12px;
-            background: #40952f url('847.jpg!list1x.v2') center / 100% 100% no-repeat;
+            background: #40952f url('baseball-field.jpg') center / 100% 100% no-repeat;
             cursor: crosshair;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35);
         }
@@ -1304,10 +1304,10 @@
             ]);
             addSheet(workbook, `${team.name}局数矩阵`, [lineupHeaders, ...lineupRows]);
 
-            const statsHeaders = ['棒次', '姓名', 'PA', 'AB', 'H', 'HR', 'RBI', 'BB', 'SO', 'DP', 'SF', 'SH', 'ROE', 'AVG', 'OBP', 'OPS'];
+            const statsHeaders = ['棒次', '姓名', 'PA', 'AB', 'H', 'HR', 'RBI', 'R', 'BB', 'SO', 'DP', 'SF', 'ROE', 'AVG', 'OBP', 'OPS'];
             const statsRows = getLineupEntries(team).map(({ player, playerIndex }) => {
                 const stat = calculateStats(team, playerIndex);
-                return [getOrderLabel(player), player.name, stat.pa, stat.ab, stat.h, stat.hr, stat.rbi, stat.bb, stat.so, stat.dp, stat.sf, stat.sh, stat.roe, stat.avg, stat.obp, stat.ops];
+                return [getOrderLabel(player), player.name, stat.pa, stat.ab, stat.h, stat.hr, stat.rbi, stat.r, stat.bb, stat.so, stat.dp, stat.sf, stat.roe, stat.avg, stat.obp, stat.ops];
             });
             addSheet(workbook, `${team.name}打击统计`, [statsHeaders, ...statsRows]);
         });
@@ -2863,7 +2863,31 @@
         const ops = (Number(obp) + Number(slg)).toFixed(3);
         const formatRatio = (val) => val.startsWith('0.') ? val.substring(1) : val;
 
-        return { pa, ab, h, hr, rbi, bb, so, dp, sf, sh, roe, avg: formatRatio(avg), obp: formatRatio(obp), ops: formatRatio(ops) };
+        return { pa, ab, h, hr, rbi, r: calculatePlayerRuns(team, playerIndex), bb, so, dp, sf, roe, avg: formatRatio(avg), obp: formatRatio(obp), ops: formatRatio(ops) };
+    }
+
+    function runnerScored(rawRecord) {
+        return normalizeRunnerRecord(rawRecord).outcome === 'score';
+    }
+
+    function calculatePlayerRuns(team, playerIndex) {
+        const player = team.lineup[playerIndex];
+        if (!player) return 0;
+        let runs = 0;
+        team.playDetails.forEach(playerDetails => {
+            playerDetails.forEach(detail => {
+                if (!detail?.runners) return;
+                Object.values(detail.runners).forEach(rawRecord => {
+                    const record = normalizeRunnerRecord(rawRecord);
+                    if (!runnerScored(record)) return;
+                    const isPlayer = record.playerIndex === playerIndex
+                        || (record.playerIndex === null && record.name === player.name
+                            && (!record.lineupId || record.lineupId === player.id));
+                    if (isPlayer) runs += 1;
+                });
+            });
+        });
+        return runs;
     }
 
     function getPlayLogRows() {
@@ -2956,7 +2980,7 @@
             const batter = teams[row.teamIndex].lineup[row.playerIndex];
             const result = getResultDisplay(row.result);
             const batterRecord = normalizeRunnerRecord(row.detail.runners?.batter);
-            const batterScore = batterRecord.outcome === 'score' ? 1 : 0;
+            const batterScore = runnerScored(batterRecord) ? 1 : 0;
             group.events.push({
                 player: `${batter ? getOrderLabel(batter) : row.playerIndex + 1}棒 · ${row.batter}`,
                 text: result.label,
@@ -2972,7 +2996,7 @@
                 group.events.push({
                     player: playerName,
                     text: getRunnerProgressText(record, row.teamIndex),
-                    score: record.outcome === 'score' ? 1 : 0,
+                    score: runnerScored(record) ? 1 : 0,
                     detail: ''
                 });
             });
@@ -3071,7 +3095,7 @@
                         <thead>
                             <tr>
                                 <th>棒次</th><th>姓名</th><th>PA</th><th>AB</th>
-                                <th>H</th><th>HR</th><th>RBI</th><th>BB</th><th>SO</th><th>DP</th><th>SF</th><th>SH</th><th>ROE</th><th>AVG</th><th>OBP</th><th>OPS</th>
+                                <th>H</th><th>HR</th><th>RBI</th><th>R</th><th>BB</th><th>SO</th><th>DP</th><th>SF</th><th>ROE</th><th>AVG</th><th>OBP</th><th>OPS</th>
                             </tr>
                         </thead>
                         <tbody id="stats-body-${teamIndex}"></tbody>
@@ -3092,11 +3116,11 @@
                     <td>${stat.h}</td>
                     <td>${stat.hr}</td>
                     <td>${stat.rbi}</td>
+                    <td>${stat.r}</td>
                     <td>${stat.bb}</td>
                     <td>${stat.so}</td>
                     <td>${stat.dp}</td>
                     <td>${stat.sf}</td>
-                    <td>${stat.sh}</td>
                     <td>${stat.roe}</td>
                     <td style="color:#0f172a; font-weight:bold;">${stat.avg}</td>
                     <td style="color:#0f172a; font-weight:bold;">${stat.obp}</td>
