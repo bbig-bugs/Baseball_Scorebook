@@ -38,6 +38,126 @@
             margin: 0 auto;
         }
 
+        .setup-screen {
+            max-width: 980px;
+            margin: 28px auto;
+        }
+
+        .setup-hero {
+            margin-bottom: 18px;
+            padding: 22px 24px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .setup-hero h1 {
+            margin: 0 0 8px;
+            color: var(--primary);
+            font-size: 26px;
+        }
+
+        .setup-hero p {
+            margin: 0;
+            color: #475569;
+        }
+
+        .game-type-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .game-type-card {
+            min-height: 150px;
+            padding: 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--text-main);
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .game-type-card:hover,
+        .game-type-card.selected {
+            border-color: var(--primary);
+            background: #f0f9ff;
+        }
+
+        .game-type-card strong,
+        .game-type-card span {
+            display: block;
+        }
+
+        .game-type-card strong {
+            margin-bottom: 8px;
+            color: #075985;
+            font-size: 18px;
+        }
+
+        .game-type-card span {
+            margin-top: 5px;
+            color: #475569;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .setup-fields {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin: 14px 0;
+        }
+
+        .setup-fields label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: #334155;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .setup-fields input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .setup-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .current-position {
+            color: #0369a1;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .lineup-table tr.substitute-row {
+            background: #fffaf0;
+        }
+
+        .lineup-table tr.substitute-row td:first-child {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .substitute-label {
+            color: #b45309;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .lineup-table td:first-child small {
+            white-space: nowrap;
+        }
+
         header {
             margin-bottom: 20px;
             border-bottom: 2px solid var(--border-color);
@@ -798,6 +918,19 @@
                 padding: 12px;
             }
 
+            .game-type-grid,
+            .setup-fields {
+                grid-template-columns: 1fr;
+            }
+
+            .setup-actions {
+                justify-content: stretch;
+            }
+
+            .setup-actions .btn {
+                flex: 1;
+            }
+
             header h1 {
                 font-size: 20px;
             }
@@ -897,13 +1030,49 @@
 </head>
 <body>
 
-<div class="container">
+<div id="setup-screen" class="setup-screen">
+    <div class="setup-hero">
+        <h1>开始一场新的比赛</h1>
+        <p>选择比赛类型，系统会自动设置比赛局数、默认人数和布阵规则。</p>
+    </div>
+    <div class="panel">
+        <p class="panel-title">选择比赛类型</p>
+        <div class="game-type-grid">
+            <button type="button" class="game-type-card selected" data-game-type="baseball" onclick="selectGameType('baseball')">
+                <strong>棒球</strong>
+                <span>9 名球员</span>
+                <span>9 局比赛</span>
+            </button>
+            <button type="button" class="game-type-card" data-game-type="softball" onclick="selectGameType('softball')">
+                <strong>垒球</strong>
+                <span>9 名球员</span>
+                <span>7 局比赛</span>
+            </button>
+            <button type="button" class="game-type-card" data-game-type="slow" onclick="selectGameType('slow')">
+                <strong>慢垒</strong>
+                <span>10 名球员</span>
+                <span>7 局比赛，包含 1 名自由人</span>
+            </button>
+        </div>
+        <div class="setup-fields">
+            <label>比赛日期<input id="setup-date" type="date"></label>
+            <label>一队名称<input id="setup-team-0" type="text" value="一队"></label>
+            <label>二队名称<input id="setup-team-1" type="text" value="二队"></label>
+        </div>
+        <div class="setup-actions">
+            <button type="button" class="btn btn-add-player" onclick="startGame()">开始记录</button>
+        </div>
+    </div>
+</div>
+
+<div id="app-container" class="container" style="display:none;">
     <header>
         <h1>Baseball Scorebook Pro 数字化记录板</h1>
         <div class="header-actions">
             <button class="btn btn-add-player" onclick="exportAllData()">一键导出Excel</button>
             <button class="btn btn-bb" onclick="saveToLocalStorage()">立即保存</button>
             <button class="btn btn-roe" onclick="changeGame()">换场</button>
+            <button class="btn" onclick="openNewGameSetup()">新建比赛</button>
             <button class="btn btn-out" onclick="clearAllData()">一键清空数据</button>
         </div>
     </header>
@@ -964,7 +1133,7 @@
                 <section class="detail-section">
                     <h3>2. 球型与落点</h3>
                     <div class="choice-grid" id="contact-type-options"></div>
-                    <p style="margin:12px 0 8px; color:#64748b; font-size:12px;">点击球场记录落点；再按实际先后点击守备员，形成连续传球。</p>
+                    <p id="defense-context" style="margin:12px 0 8px; color:#64748b; font-size:12px;"></p>
                     <div class="field-recorder" id="field-recorder" onclick="setLandingPoint(event)"></div>
                     <div class="throw-chain" id="throw-chain"></div>
                     <div class="detail-inline" style="margin-top:8px;">
@@ -973,6 +1142,14 @@
                         <label>失误责任
                             <select class="detail-select" id="error-fielder" onchange="updateDetailField('errorFielder', this.value)"></select>
                         </label>
+                    </div>
+                    <div class="detail-inline" style="margin-top:10px;">
+                        <label><span id="swap-team-label">交换守备位置</span>
+                            <select class="detail-select" id="swap-player-a"></select>
+                        </label>
+                        <span>↔</span>
+                        <select class="detail-select" id="swap-player-b"></select>
+                        <button type="button" class="btn btn-roe" style="padding:7px 10px;" onclick="swapDetailPositions()">交换</button>
                     </div>
                 </section>
                 <section class="detail-section">
@@ -1010,38 +1187,54 @@
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-    const inningCount = 9;
+    const GAME_TYPES = {
+        baseball: { key: 'baseball', label: '棒球', innings: 9, playerCount: 9, hasFlex: false },
+        softball: { key: 'softball', label: '垒球', innings: 7, playerCount: 9, hasFlex: false },
+        slow: { key: 'slow', label: '慢垒', innings: 7, playerCount: 10, hasFlex: true }
+    };
+    let gameConfig = { ...GAME_TYPES.baseball };
+    let inningCount = gameConfig.innings;
+    let selectedSetupType = 'baseball';
     const extraScoreColumns = ['R', 'H', 'E'];
     const STORAGE_KEY = 'baseball_scorebook_state_v1';
 
     function getAppState() {
         return {
             date: document.getElementById('game-date').value,
+            gameConfig: { ...gameConfig },
             teams,
             selectedCell
         };
     }
 
     function saveToLocalStorage() {
+        if (document.getElementById('app-container')?.style.display === 'none') return;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(getAppState()));
     }
 
     function restoreFromLocalStorage() {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
+        if (!raw) return false;
 
         try {
             const state = JSON.parse(raw);
+            const savedConfig = state?.gameConfig;
+            if (savedConfig?.key && GAME_TYPES[savedConfig.key]) {
+                gameConfig = { ...GAME_TYPES[savedConfig.key] };
+                inningCount = gameConfig.innings;
+            }
             if (state?.teams && Array.isArray(state.teams) && state.teams.length === teams.length) {
                 state.teams.forEach((savedTeam, index) => {
                     teams[index].name = savedTeam.name || teams[index].name;
                     teams[index].lineup = savedTeam.lineup || teams[index].lineup;
+                    normalizeLineup(teams[index]);
                     teams[index].gridData = normalizeGridData(savedTeam.gridData, teams[index].lineup.length);
                     teams[index].baseData = normalizeBaseData(savedTeam.baseData, teams[index].lineup.length);
                     teams[index].playDetails = normalizePlayDetails(savedTeam.playDetails, teams[index].lineup.length);
-                    teams[index].inningScores = savedTeam.inningScores || teams[index].inningScores;
+                    teams[index].inningScores = Array.from({ length: inningCount }, (_, inningIndex) => savedTeam.inningScores?.[inningIndex] ?? '');
                     teams[index].hits = savedTeam.hits ?? teams[index].hits;
                     teams[index].errors = savedTeam.errors ?? teams[index].errors;
+                    teams[index].defensiveAlignment = createAlignment(teams[index].lineup);
                 });
             }
             if (state?.selectedCell) {
@@ -1052,7 +1245,9 @@
             }
         } catch (error) {
             localStorage.removeItem(STORAGE_KEY);
+            return false;
         }
+        return true;
     }
 
     function scheduleSave() {
@@ -1092,6 +1287,7 @@
         addSheet(workbook, '比赛信息与比分', [
             ['导出时间', new Date().toLocaleString()],
             ['比赛日期', date],
+            ['比赛类型', `${gameConfig.label}（${gameConfig.playerCount}人，${gameConfig.innings}局${gameConfig.hasFlex ? '，含自由人' : ''}）`],
             ['比赛', `${teams[0].name} vs ${teams[1].name}`],
             [],
             scoreHeaders,
@@ -1100,8 +1296,8 @@
 
         teams.forEach(team => {
             const lineupHeaders = ['棒次', '姓名', '守备', ...Array.from({ length: inningCount }, (_, i) => `第${i + 1}局-打席记录`)];
-            const lineupRows = team.lineup.map((player, playerIndex) => [
-                player.id,
+            const lineupRows = getLineupEntries(team).map(({ player, playerIndex }) => [
+                getOrderLabel(player),
                 player.name,
                 player.pos,
                 ...team.gridData[playerIndex].map((cell, inningIndex) => cell.map((result, slotIndex) => formatAtBatForExport(team, playerIndex, inningIndex, slotIndex, result)).filter(Boolean).join(' / '))
@@ -1109,9 +1305,9 @@
             addSheet(workbook, `${team.name}局数矩阵`, [lineupHeaders, ...lineupRows]);
 
             const statsHeaders = ['棒次', '姓名', 'PA', 'AB', 'H', 'HR', 'RBI', 'BB', 'SO', 'DP', 'SF', 'SH', 'ROE', 'AVG', 'OBP', 'OPS'];
-            const statsRows = team.lineup.map((player, playerIndex) => {
+            const statsRows = getLineupEntries(team).map(({ player, playerIndex }) => {
                 const stat = calculateStats(team, playerIndex);
-                return [player.id, player.name, stat.pa, stat.ab, stat.h, stat.hr, stat.rbi, stat.bb, stat.so, stat.dp, stat.sf, stat.sh, stat.roe, stat.avg, stat.obp, stat.ops];
+                return [getOrderLabel(player), player.name, stat.pa, stat.ab, stat.h, stat.hr, stat.rbi, stat.bb, stat.so, stat.dp, stat.sf, stat.sh, stat.roe, stat.avg, stat.obp, stat.ops];
             });
             addSheet(workbook, `${team.name}打击统计`, [statsHeaders, ...statsRows]);
         });
@@ -1162,15 +1358,71 @@
         team.inningScores = Array(inningCount).fill('');
         team.hits = '';
         team.errors = '';
+        team.defensiveAlignment = createAlignment(team.lineup);
     }
 
     function resetGameOnly(team) {
+        team.lineup = getLineupEntries(team, true).map(({ player }, index) => ({
+            id: index + 1, name: player.name, pos: player.pos, active: true,
+            isStarter: !player.added, added: Boolean(player.added), battingOnly: Boolean(player.battingOnly)
+        }));
+        team.defensiveAlignment = createAlignment(team.lineup);
         team.gridData = createGridData(team.lineup.length);
         team.baseData = createBaseData(team.lineup.length);
         team.playDetails = createPlayDetails(team.lineup.length);
         team.inningScores = Array(inningCount).fill('');
         team.hits = '';
         team.errors = '';
+    }
+
+    function selectGameType(type) {
+        if (!GAME_TYPES[type]) return;
+        document.querySelectorAll('.game-type-card').forEach(card => {
+            card.classList.toggle('selected', card.dataset.gameType === type);
+        });
+        selectedSetupType = type;
+    }
+
+    function startGame() {
+        const selectedType = GAME_TYPES[selectedSetupType] || GAME_TYPES.baseball;
+        gameConfig = { ...selectedType };
+        inningCount = gameConfig.innings;
+        teams.forEach((team, index) => {
+            resetTeam(team, index);
+            team.name = document.getElementById(`setup-team-${index}`).value.trim() || `${index + 1}队`;
+        });
+        document.getElementById('game-date').value = document.getElementById('setup-date').value || formatDateInput(new Date());
+        document.getElementById('team-name-0').value = teams[0].name;
+        document.getElementById('team-name-1').value = teams[1].name;
+        selectedCell = { teamIndex: 0, playerIndex: 0, inningIndex: 0, slotIndex: 0 };
+        showApp();
+        renderAll();
+        updateKeypadTitle();
+        saveToLocalStorage();
+    }
+
+    function formatDateInput(date) {
+        const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        return localDate.toISOString().slice(0, 10);
+    }
+
+    function showApp() {
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('app-container').style.display = '';
+    }
+
+    function showSetup() {
+        document.getElementById('setup-screen').style.display = '';
+        document.getElementById('app-container').style.display = 'none';
+    }
+
+    function openNewGameSetup() {
+        if (!confirm('确定要新建比赛吗？当前比赛数据会保留在浏览器中，开始新比赛后将被新数据替换。')) return;
+        document.getElementById('setup-date').value = formatDateInput(new Date());
+        document.getElementById('setup-team-0').value = teams[0].name;
+        document.getElementById('setup-team-1').value = teams[1].name;
+        selectGameType(gameConfig.key);
+        showSetup();
     }
 
     function changeGame() {
@@ -1198,11 +1450,57 @@
     }
 
     function createLineup() {
-        return Array.from({ length: 10 }, (_, i) => ({
+        const standardPositions = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+        return Array.from({ length: gameConfig.playerCount }, (_, i) => ({
             id: i + 1,
             name: `球员 ${i + 1}`,
-            pos: ''
+            active: true,
+            isStarter: true,
+            pos: gameConfig.hasFlex && i === 9 ? 'FLEX' : (standardPositions[i] || '')
         }));
+    }
+
+    function createAlignment(lineup) {
+        return lineup.map((player, index) => ({ playerIndex: index, position: player.pos || '' }));
+    }
+
+    // Keep array indexes stable: saved runners and throws refer to these indexes.
+    function normalizeLineup(team) {
+        team.lineup.forEach((player, index) => {
+            player.id = Number.isInteger(Number(player.id)) && Number(player.id) > 0 ? Number(player.id) : index + 1;
+            player.active = player.active !== false;
+            player.entryInning = Math.min(inningCount - 1, Math.max(0, Number(player.entryInning) || 0));
+            player.pos = canonicalPosition(player.pos);
+        });
+    }
+
+    function getLineupEntries(team, activeOnly = false) {
+        return team.lineup.map((player, playerIndex) => ({ player, playerIndex }))
+            .filter(({ player }) => !player.removed && (!activeOnly || player.active !== false))
+            .sort((a, b) => a.player.id - b.player.id || a.playerIndex - b.playerIndex);
+    }
+
+    function getOrderLabel(player) {
+        return Number.isInteger(player.replacesIndex) ? `替换${player.id}` : String(player.id);
+    }
+
+    function getPlayerRowClass(player) {
+        return Number.isInteger(player.replacesIndex) ? 'substitute-row' : '';
+    }
+
+    function canRecordCell(teamIndex, playerIndex, inningIndex) {
+        const team = teams[teamIndex];
+        const player = team.lineup[playerIndex];
+        const base = team.baseData?.[playerIndex]?.[inningIndex]?.[0];
+        const hasRecord = Boolean(team.gridData?.[playerIndex]?.[inningIndex]?.[0] || team.playDetails?.[playerIndex]?.[inningIndex]
+            || base?.first || base?.second || base?.third);
+        return hasRecord || (player.active !== false && inningIndex >= (player.entryInning || 0));
+    }
+
+    function comparePlayRows(a, b) {
+        return a.inningIndex - b.inningIndex || a.teamIndex - b.teamIndex
+            || teams[a.teamIndex].lineup[a.playerIndex].id - teams[b.teamIndex].lineup[b.playerIndex].id
+            || a.playerIndex - b.playerIndex;
     }
 
     function createGridData(playerCount) {
@@ -1358,7 +1656,8 @@
             playDetails: createPlayDetails(lineup.length),
             inningScores: Array(inningCount).fill(''),
             hits: '',
-            errors: ''
+            errors: '',
+            defensiveAlignment: createAlignment(lineup)
         };
     });
 
@@ -1368,14 +1667,23 @@
     let detailTarget = null;
 
     function init() {
-        restoreFromLocalStorage();
+        const restored = restoreFromLocalStorage();
         normalizeSelectedCell();
         if (!document.getElementById('game-date').value) {
             document.getElementById('game-date').valueAsDate = new Date();
         }
-        renderAll();
-        updateKeypadTitle();
-        saveToLocalStorage();
+        document.getElementById('setup-date').value = document.getElementById('game-date').value || formatDateInput(new Date());
+        document.getElementById('setup-team-0').value = teams[0].name;
+        document.getElementById('setup-team-1').value = teams[1].name;
+        selectGameType(gameConfig.key);
+        if (restored) {
+            showApp();
+            renderAll();
+            updateKeypadTitle();
+            saveToLocalStorage();
+        } else {
+            showSetup();
+        }
         window.addEventListener('beforeunload', saveToLocalStorage);
         document.addEventListener('click', (event) => {
             if (!event.target.closest('.result-popover') && !event.target.closest('.score-cell')) {
@@ -1422,7 +1730,7 @@
     }
 
     function renderGameInfo() {
-        document.getElementById('game-title').textContent = `${teams[0].name} vs ${teams[1].name}`;
+        document.getElementById('game-title').textContent = `${gameConfig.label} · ${teams[0].name} vs ${teams[1].name}`;
     }
 
     function updateGameInfo() {
@@ -1476,9 +1784,7 @@
     }
 
     function syncLineupIds(teamIndex) {
-        teams[teamIndex].lineup.forEach((player, index) => {
-            player.id = index + 1;
-        });
+        normalizeLineup(teams[teamIndex]);
     }
 
     function renderTeams() {
@@ -1492,10 +1798,20 @@
                 <div class="toolbar">
                     <div class="toolbar-controls">
                         <input id="new-player-name-${teamIndex}" class="mini-input" type="text" placeholder="新成员姓名">
-                        <input id="new-player-pos-${teamIndex}" class="mini-input" type="text" placeholder="守备位置">
-                        <button class="btn btn-add-player" onclick="addPlayer(${teamIndex})">添加新成员棒次</button>
+                        <input id="new-player-pos-${teamIndex}" class="mini-input" type="text" placeholder="位置 P/C/1B…${gameConfig.key === 'slow' ? ' 或 EH' : ' 或 DH'}">
+                        <select id="new-player-slot-${teamIndex}" class="mini-input" aria-label="新成员上场棒次">
+                            <option value="append">追加到队尾</option>
+                            ${getLineupEntries(team, true).map(({ player, playerIndex }) => `
+                                <option value="replace:${playerIndex}">替换第 ${player.id} 棒（${escapeHtml(player.name)}）</option>
+                                <option value="insert:${playerIndex}">插入到第 ${player.id} 棒前</option>
+                            `).join('')}
+                        </select>
+                        <select id="new-player-inning-${teamIndex}" class="mini-input" aria-label="换人开始局数">
+                            ${Array.from({ length: inningCount }, (_, index) => `<option value="${index}" ${index === selectedCell.inningIndex ? 'selected' : ''}>从第 ${index + 1} 局上场</option>`).join('')}
+                        </select>
+                        <button class="btn btn-add-player" onclick="addPlayer(${teamIndex})">新成员上场</button>
                     </div>
-                    <span style="font-size:12px; color:#64748b;">点击垒包记录赛前局面；点击方格可录入结果，并通过“详细记录/补充这球”记录落点、传球与跑者去向。</span>
+                    <span style="font-size:12px; color:#64748b;">换人后原记录保留，新成员显示在原棒次下方；上场局数决定后续录入起点。点击垒包记录打席前局面，点击方格录入结果。</span>
                 </div>
                 <div class="table-responsive">
                     <table class="lineup-table">
@@ -1504,7 +1820,7 @@
                                 <th style="width: 50px;">棒次</th>
                                 <th style="width: 100px;">姓名</th>
                                 <th style="width: 60px;">守备</th>
-                                <th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>七</th><th>八</th><th>九</th>
+                                ${Array.from({ length: inningCount }, (_, index) => `<th>${index + 1}</th>`).join('')}
                             </tr>
                         </thead>
                         <tbody id="grid-body-${teamIndex}"></tbody>
@@ -1540,24 +1856,27 @@
         const tbody = document.getElementById(`grid-body-${teamIndex}`);
         tbody.innerHTML = '';
 
-        team.lineup.forEach((player, pIdx) => {
+        getLineupEntries(team).forEach(({ player, playerIndex: pIdx }) => {
             const tr = document.createElement('tr');
+            tr.className = getPlayerRowClass(player);
 
             const orderTd = document.createElement('td');
             orderTd.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:6px; align-items:center;">
-                    <span>${player.id}</span>
-                    ${pIdx >= 10 ? `<button class="btn btn-out" style="padding:4px 8px; font-size:12px;" onclick="removePlayer(${teamIndex}, ${pIdx})">删除</button>` : ''}
+                    <span class="${Number.isInteger(player.replacesIndex) ? 'substitute-label' : ''}">${getOrderLabel(player)}</span>
+                    ${player.active === false ? '<small style="color:#64748b;">已换下</small>' : ''}
+                    ${Number.isInteger(player.replacesIndex) && player.active !== false ? `<button class="btn" style="padding:4px 8px; font-size:12px;" onclick="undoSubstitution(${teamIndex}, ${pIdx})">撤销换人</button>` : ''}
+                    ${(player.added === true || (player.id > gameConfig.playerCount && player.isStarter !== true)) && !Number.isInteger(player.replacesIndex) ? `<button class="btn btn-out" style="padding:4px 8px; font-size:12px;" onclick="removePlayer(${teamIndex}, ${pIdx})">删除</button>` : ''}
                 </div>
             `;
             tr.appendChild(orderTd);
 
             const nameTd = document.createElement('td');
-            nameTd.innerHTML = `<input type="text" class="player-input" value="${player.name}" onchange="updatePlayerName(${teamIndex}, ${pIdx}, this.value)">`;
+            nameTd.innerHTML = `<input type="text" class="player-input" value="${escapeHtml(player.name)}" onchange="updatePlayerName(${teamIndex}, ${pIdx}, this.value)">`;
             tr.appendChild(nameTd);
 
             const posTd = document.createElement('td');
-            posTd.innerHTML = `<input type="text" class="player-input" style="width:40px;" value="${player.pos}" onchange="updatePlayerPos(${teamIndex}, ${pIdx}, this.value)">`;
+            posTd.innerHTML = `<input type="text" class="player-input" style="width:100%;" aria-label="${escapeHtml(player.name)}守备位置" placeholder="P/C/1B…" value="${escapeHtml(player.pos)}" onchange="updatePlayerPos(${teamIndex}, ${pIdx}, this.value)">`;
             tr.appendChild(posTd);
 
             for (let iIdx = 0; iIdx < inningCount; iIdx++) {
@@ -1568,6 +1887,14 @@
                 cell.dataset.team = teamIndex;
                 cell.dataset.player = pIdx;
                 cell.dataset.inning = iIdx;
+                if (!canRecordCell(teamIndex, pIdx, iIdx)) {
+                    cell.style.background = '#f1f5f9';
+                    cell.style.cursor = 'default';
+                    cell.textContent = '—';
+                    cell.title = player.active === false ? '球员已换下，已有记录仍可修改' : '球员尚未上场';
+                    tr.appendChild(cell);
+                    continue;
+                }
                 const firstClass = firstVal ? 'cell-' + firstVal.split('-')[0] : '';
                 const activeClass = selectedCell.teamIndex === teamIndex && selectedCell.playerIndex === pIdx && selectedCell.inningIndex === iIdx ? 'active' : '';
                 cell.innerHTML = `
@@ -1583,7 +1910,8 @@
 
     function updatePlayerName(teamIndex, playerIndex, val) {
         teams[teamIndex].lineup[playerIndex].name = val;
-        renderStats();
+        renderAll();
+        renderDetailEditor();
         updateKeypadTitle();
         scheduleSave();
     }
@@ -1604,7 +1932,32 @@
     }
 
     function updatePlayerPos(teamIndex, playerIndex, val) {
-        teams[teamIndex].lineup[playerIndex].pos = val;
+        updateAlignmentPosition(teamIndex, playerIndex, val);
+    }
+
+    function updateAlignmentPosition(teamIndex, playerIndex, position) {
+        const team = teams[teamIndex];
+        if (!team.lineup[playerIndex]) return;
+        position = canonicalPosition(position);
+        if (!canUsePosition(position)) {
+            renderAll();
+            return;
+        }
+        const player = team.lineup[playerIndex];
+        if (isBattingOnlyPosition(position) && !player.battingOnly) {
+            alert('DH/EH 是额外打击员，请新增球员并选择追加或插入棒次。');
+            renderAll();
+            return;
+        }
+        const oldPosition = canonicalPosition(player.pos);
+        const other = normalizePositionNumber(position) > 0
+            ? team.lineup.find((item, index) => index !== playerIndex && item.active !== false && !item.removed && canonicalPosition(item.pos) === position)
+            : null;
+        if (player.active !== false && other) other.pos = oldPosition;
+        player.pos = position;
+        team.defensiveAlignment = createAlignment(team.lineup);
+        renderAll();
+        renderDetailEditor();
         scheduleSave();
     }
 
@@ -1634,6 +1987,7 @@
     }
 
     function openResultPicker(event, teamIndex, playerIndex, inningIndex, slotIndex) {
+        if (!canRecordCell(teamIndex, playerIndex, inningIndex)) return;
         selectCell(teamIndex, playerIndex, inningIndex, slotIndex, false);
 
         const popover = document.getElementById('result-popover');
@@ -1717,16 +2071,18 @@
     const runnerReasonLabels = Object.fromEntries(runnerReasonOptions.map(option => [option.value, option.label]));
     const baseLabels = { batter: '打者', first: '一垒', second: '二垒', third: '三垒', score: '本垒' };
     const fieldPositions = [
-        { number: 7, short: '左外', x: 23, y: 29 },
-        { number: 8, short: '中外', x: 50, y: 14 },
-        { number: 9, short: '右外', x: 77, y: 29 },
-        { number: 5, short: '三垒', x: 30, y: 64 },
-        { number: 6, short: '游击', x: 41, y: 48 },
-        { number: 4, short: '二垒', x: 59, y: 48 },
-        { number: 3, short: '一垒', x: 70, y: 64 },
-        { number: 1, short: '投手', x: 50, y: 69 },
-        { number: 2, short: '捕手', x: 50, y: 91 }
+        { number: 7, short: 'LF', x: 23, y: 29 },
+        { number: 8, short: 'CF', x: 50, y: 14 },
+        { number: 9, short: 'RF', x: 77, y: 29 },
+        { number: 5, short: '3B', x: 30, y: 64 },
+        { number: 6, short: 'SS', x: 41, y: 48 },
+        { number: 4, short: '2B', x: 59, y: 48 },
+        { number: 3, short: '1B', x: 70, y: 64 },
+        { number: 1, short: 'P', x: 50, y: 69 },
+        { number: 2, short: 'C', x: 50, y: 91 }
     ];
+
+    const flexPosition = { number: 10, short: 'FLEX', x: 38, y: 31 };
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -1748,25 +2104,92 @@
             'SS': 6, '游击': 6, '游击手': 6, '6': 6,
             'LF': 7, '左外': 7, '左外野': 7, '7': 7,
             'CF': 8, '中外': 8, '中外野': 8, '8': 8,
-            'RF': 9, '右外': 9, '右外野': 9, '9': 9
+            'RF': 9, '右外': 9, '右外野': 9, '9': 9,
+            '自由人': 10, '自由': 10, 'SF': 10, 'FLEX': 10, '10': 10
         };
         return aliases[value] || 0;
     }
 
+    function canonicalPosition(position) {
+        const value = String(position || '').trim().toUpperCase().replaceAll(' ', '')
+            .replaceAll('壘', '垒').replaceAll('遊', '游');
+        const battingOnlyAliases = {
+            'DH': 'DH', '指定打击': 'DH', '指定打者': 'DH', '指定打击员': 'DH',
+            'EH': 'EH', '额外打击': 'EH', '额外打者': 'EH', '额外打击员': 'EH'
+        };
+        if (battingOnlyAliases[value]) return battingOnlyAliases[value];
+        const number = normalizePositionNumber(value);
+        return [...fieldPositions, flexPosition].find(item => item.number === number)?.short || value;
+    }
+
+    function canUsePosition(position) {
+        if (position === 'DH' && gameConfig.key === 'slow') {
+            alert('慢垒请使用 EH；DH 仅用于棒球和垒球。');
+            return false;
+        }
+        if (position === 'EH' && gameConfig.key !== 'slow') {
+            alert('EH 仅用于慢垒；棒球和垒球请使用 DH。');
+            return false;
+        }
+        return true;
+    }
+
+    function isBattingOnlyPosition(position) {
+        return ['DH', 'EH'].includes(canonicalPosition(position));
+    }
+
     function getFielders(battingTeamIndex) {
         const defense = teams[battingTeamIndex === 0 ? 1 : 0];
-        const used = new Set();
-        return fieldPositions.map(position => {
-            let playerIndex = defense.lineup.findIndex((player, index) =>
-                !used.has(index) && normalizePositionNumber(player.pos) === position.number
+        const positions = gameConfig.hasFlex ? [...fieldPositions, flexPosition] : fieldPositions;
+        return positions.map(position => {
+            const playerIndex = defense.lineup.findIndex(player =>
+                player.active !== false && !player.removed && normalizePositionNumber(player.pos) === position.number
             );
-            if (playerIndex < 0) {
-                playerIndex = defense.lineup.findIndex((player, index) => !used.has(index));
-            }
-            if (playerIndex >= 0) used.add(playerIndex);
             const player = defense.lineup[playerIndex] || { name: '未指定', pos: '' };
             return { ...position, playerIndex, player };
         });
+    }
+
+    function getDefenseTeamIndex(battingTeamIndex) {
+        return battingTeamIndex === 0 ? 1 : 0;
+    }
+
+    function renderPositionSwapControls(teamIndex) {
+        const firstSelect = document.getElementById('swap-player-a');
+        const secondSelect = document.getElementById('swap-player-b');
+        if (!firstSelect || !secondSelect) return;
+        const defense = teams[getDefenseTeamIndex(detailTarget.teamIndex)];
+        const previousFirst = firstSelect.value;
+        const previousSecond = secondSelect.value;
+        const activeEntries = getLineupEntries(defense, true)
+            .filter(({ player }) => !isBattingOnlyPosition(player.pos));
+        const options = activeEntries.map(({ player, playerIndex }) =>
+            `<option value="${playerIndex}">${escapeHtml(player.pos || '未设置')} · ${escapeHtml(player.name)}</option>`
+        ).join('');
+        firstSelect.innerHTML = options;
+        secondSelect.innerHTML = options;
+        firstSelect.value = activeEntries.some(entry => String(entry.playerIndex) === previousFirst) ? previousFirst : String(activeEntries[0]?.playerIndex ?? '');
+        secondSelect.value = activeEntries.some(entry => String(entry.playerIndex) === previousSecond) ? previousSecond : String(activeEntries[1]?.playerIndex ?? activeEntries[0]?.playerIndex ?? '');
+    }
+
+    function swapDetailPositions() {
+        if (!detailTarget) return;
+        const firstSelect = document.getElementById('swap-player-a');
+        const secondSelect = document.getElementById('swap-player-b');
+        const firstIndex = Number(firstSelect?.value);
+        const secondIndex = Number(secondSelect?.value);
+        const defense = teams[getDefenseTeamIndex(detailTarget.teamIndex)];
+        if (!Number.isInteger(firstIndex) || !Number.isInteger(secondIndex) || firstIndex === secondIndex
+            || !defense.lineup[firstIndex] || !defense.lineup[secondIndex]
+            || isBattingOnlyPosition(defense.lineup[firstIndex].pos) || isBattingOnlyPosition(defense.lineup[secondIndex].pos)
+            || defense.lineup[firstIndex].active === false || defense.lineup[secondIndex].active === false) return;
+        const firstPosition = defense.lineup[firstIndex]?.pos || '';
+        defense.lineup[firstIndex].pos = defense.lineup[secondIndex]?.pos || '';
+        defense.lineup[secondIndex].pos = firstPosition;
+        defense.defensiveAlignment = createAlignment(defense.lineup);
+        renderAll();
+        renderDetailEditor();
+        saveToLocalStorage();
     }
 
     function getFielderLabel(battingTeamIndex, playerIndex) {
@@ -1782,6 +2205,7 @@
     }
 
     function openPlayDetail(teamIndex, playerIndex, inningIndex) {
+        if (!canRecordCell(teamIndex, playerIndex, inningIndex)) return;
         const saved = teams[teamIndex].playDetails?.[playerIndex]?.[inningIndex];
         detailTarget = { teamIndex, playerIndex, inningIndex };
         detailDraft = cloneDetail(saved || createPlayDetail());
@@ -1818,11 +2242,16 @@
             <button type="button" class="choice-btn ${detailDraft.contactType === type ? 'selected' : ''}" onclick="setContactType('${type}')">${type}</button>
         `).join('');
 
+        const defenseTeamIndex = getDefenseTeamIndex(detailTarget.teamIndex);
+        const defenseTeam = teams[defenseTeamIndex];
+        document.getElementById('swap-team-label').textContent = `${defenseTeam.name} · 交换守备位置`;
         const fielders = getFielders(detailTarget.teamIndex);
+        document.getElementById('defense-context').textContent = `防守方：${defenseTeam.name}。点击球场记录落点；按处理顺序点击守备员记录传球。`;
         const field = document.getElementById('field-recorder');
         field.innerHTML = fielders.map(fielder => `
             <button type="button" class="field-label ${detailDraft.throws.includes(fielder.playerIndex) ? 'selected' : ''}"
                 style="left:${fielder.x}%; top:${fielder.y}%;"
+                ${fielder.playerIndex < 0 ? 'disabled' : ''}
                 onclick="event.stopPropagation(); addThrow(${fielder.playerIndex})">
                 ${fielder.short}<br>${escapeHtml(fielder.player.name)}
             </button>
@@ -1836,10 +2265,11 @@
             : '尚未记录传球；按实际处理顺序点击场上的守备员。';
 
         const errorSelect = document.getElementById('error-fielder');
-        errorSelect.innerHTML = '<option value="">无 / 未指定</option>' + fielders.map(fielder => `
+        errorSelect.innerHTML = '<option value="">无 / 未指定</option>' + getFielders(detailTarget.teamIndex).filter(fielder => fielder.playerIndex >= 0).map(fielder => `
             <option value="${fielder.playerIndex}">${escapeHtml(getFielderLabel(detailTarget.teamIndex, fielder.playerIndex))}</option>
         `).join('');
         errorSelect.value = detailDraft.errorFielder;
+        renderPositionSwapControls(detailTarget.teamIndex);
 
         renderRunnerOutcomes();
         document.getElementById('detail-balls').value = detailDraft.balls;
@@ -2020,7 +2450,7 @@
                                 <span>传球失误</span>
                                 <select class="detail-select" onchange="setRunnerErrorFielder('${card.key}', this.value)">
                                     <option value="">请选择守备员</option>
-                                    ${fielders.map(fielder => `<option value="${fielder.playerIndex}" ${record.errorFielder === String(fielder.playerIndex) ? 'selected' : ''}>${escapeHtml(getFielderLabel(detailTarget.teamIndex, fielder.playerIndex))}</option>`).join('')}
+                                    ${fielders.filter(fielder => fielder.playerIndex >= 0).map(fielder => `<option value="${fielder.playerIndex}" ${record.errorFielder === String(fielder.playerIndex) ? 'selected' : ''}>${escapeHtml(getFielderLabel(detailTarget.teamIndex, fielder.playerIndex))}</option>`).join('')}
                                 </select>
                             ` : ''}
                         </div>
@@ -2130,11 +2560,13 @@
 
     function getNextPlateAppearance(teamIndex, playerIndex, inningIndex) {
         const team = teams[teamIndex];
-        if (playerIndex < team.lineup.length - 1) {
-            return { teamIndex, playerIndex: playerIndex + 1, inningIndex };
+        const next = getLineupEntries(team, true).find(entry => entry.player.id > team.lineup[playerIndex].id);
+        if (next) {
+            return { teamIndex, playerIndex: next.playerIndex, inningIndex: Math.max(inningIndex, next.player.entryInning || 0) };
         }
-        if (inningIndex < inningCount - 1) {
-            return { teamIndex, playerIndex: 0, inningIndex: inningIndex + 1 };
+        const first = getLineupEntries(team, true)[0];
+        if (first && inningIndex < inningCount - 1) {
+            return { teamIndex, playerIndex: first.playerIndex, inningIndex: Math.max(inningIndex + 1, first.player.entryInning || 0) };
         }
         return null;
     }
@@ -2197,18 +2629,98 @@
         const team = teams[teamIndex];
         const nameInput = document.getElementById(`new-player-name-${teamIndex}`);
         const posInput = document.getElementById(`new-player-pos-${teamIndex}`);
+        const slotInput = document.getElementById(`new-player-slot-${teamIndex}`);
         const customName = nameInput.value.trim();
         const customPos = posInput.value.trim();
 
-        team.lineup.push({
-            id: team.lineup.length + 1,
-            name: customName || `球员 ${team.lineup.length + 1}`,
-            pos: customPos
-        });
-        team.gridData.push(Array.from({ length: inningCount }, () => ['']));
-        team.baseData.push(Array.from({ length: inningCount }, () => [createBaseState()]));
-        team.playDetails.push(Array.from({ length: inningCount }, () => null));
+        if (!customName) {
+            alert('请先填写新成员姓名。');
+            nameInput.focus();
+            return;
+        }
+        if (customPos && !canUsePosition(canonicalPosition(customPos))) return;
+
+        const slotValue = slotInput?.value || 'append';
+        const entryInning = Math.min(inningCount - 1, Math.max(0, Number(document.getElementById(`new-player-inning-${teamIndex}`)?.value) || 0));
+        const addPlayerRows = player => {
+            team.lineup.push(player);
+            team.gridData.push(Array.from({ length: inningCount }, () => ['']));
+            team.baseData.push(Array.from({ length: inningCount }, () => [createBaseState()]));
+            team.playDetails.push(Array.from({ length: inningCount }, () => null));
+            const playerIndex = team.lineup.length - 1;
+            if (customPos) updateAlignmentPosition(teamIndex, playerIndex, customPos);
+            return playerIndex;
+        };
+
+        if (slotValue === 'append') {
+            const playerIndex = addPlayerRows({
+                id: Math.max(0, ...team.lineup.map(player => player.id)) + 1,
+                name: customName,
+                pos: '',
+                active: true,
+                added: true,
+                battingOnly: isBattingOnlyPosition(canonicalPosition(customPos)),
+                entryInning
+            });
+            selectedCell = { teamIndex, playerIndex, inningIndex: entryInning, slotIndex: 0 };
+        } else if (slotValue.startsWith('insert:')) {
+            const targetIndex = Number(slotValue.slice('insert:'.length));
+            const target = team.lineup[targetIndex];
+            if (!target || target.active === false || target.removed) return;
+            if (!confirm(`确认将 ${customName} 插入第 ${target.id} 棒前？原第 ${target.id} 棒及后续棒次将顺延。`)) return;
+            const insertOrder = target.id;
+            team.lineup.forEach(player => {
+                if (player.isStarter === undefined && !player.added && !Number.isInteger(player.replacesIndex)
+                    && player.id <= gameConfig.playerCount) player.isStarter = true;
+                if (player.id >= insertOrder) player.id += 1;
+            });
+            const playerIndex = addPlayerRows({
+                id: insertOrder,
+                name: customName,
+                pos: '',
+                active: true,
+                added: true,
+                battingOnly: isBattingOnlyPosition(canonicalPosition(customPos)),
+                entryInning
+            });
+            selectedCell = { teamIndex, playerIndex, inningIndex: entryInning, slotIndex: 0 };
+        } else {
+            const playerIndex = Number(slotValue.startsWith('replace:') ? slotValue.slice('replace:'.length) : slotValue);
+            const oldPlayer = team.lineup[playerIndex];
+            if (!oldPlayer || oldPlayer.active === false) return;
+            if (customPos && isBattingOnlyPosition(canonicalPosition(customPos))) {
+                alert('DH/EH 是额外打击员，不能替换守备球员；请选择追加或插入棒次。');
+                return;
+            }
+            if (!confirm(`确认从第 ${entryInning + 1} 局起，由 ${customName} 替换第 ${oldPlayer.id} 棒 ${oldPlayer.name}？原球员记录将完整保留，新球员另起一行。`)) return;
+            const newIndex = team.lineup.length;
+            const positionsBefore = team.lineup.map(player => player.pos || '');
+            oldPlayer.active = false;
+            const replacement = {
+                id: oldPlayer.id,
+                name: customName,
+                pos: oldPlayer.pos || '',
+                active: true,
+                replacesIndex: playerIndex,
+                entryInning
+            };
+            team.lineup.push(replacement);
+            team.gridData.push(Array.from({ length: inningCount }, () => ['']));
+            team.baseData.push(Array.from({ length: inningCount }, () => [createBaseState()]));
+            team.playDetails.push(Array.from({ length: inningCount }, () => null));
+            // Carry the pending pre-at-bat situation without changing the original row.
+            if (!team.gridData[playerIndex][entryInning][0] && !team.playDetails[playerIndex][entryInning]) {
+                team.baseData[newIndex][entryInning] = JSON.parse(JSON.stringify(team.baseData[playerIndex][entryInning]));
+            }
+            selectedCell = { teamIndex, playerIndex: newIndex, inningIndex: entryInning, slotIndex: 0 };
+            if (customPos) updateAlignmentPosition(teamIndex, newIndex, customPos);
+            replacement.undoSubstitution = {
+                positionsBefore,
+                baseDataBefore: JSON.parse(JSON.stringify(team.baseData[newIndex]))
+            };
+        }
         syncLineupIds(teamIndex);
+        team.defensiveAlignment = createAlignment(team.lineup);
         nameInput.value = '';
         posInput.value = '';
         renderAll();
@@ -2216,24 +2728,64 @@
         scheduleSave();
     }
 
-    function removePlayer(teamIndex, playerIndex) {
-        if (playerIndex < 10) return;
-
+    function undoSubstitution(teamIndex, playerIndex) {
         const team = teams[teamIndex];
-        team.lineup.splice(playerIndex, 1);
-        team.gridData.splice(playerIndex, 1);
-        team.baseData.splice(playerIndex, 1);
-        team.playDetails.splice(playerIndex, 1);
+        const replacement = team?.lineup[playerIndex];
+        if (!replacement || !Number.isInteger(replacement.replacesIndex) || replacement.active === false || replacement.removed) return;
+        const original = team.lineup[replacement.replacesIndex];
+        if (!original) return;
+
+        const hasRecordedAtBat = team.gridData[playerIndex].some(cell => cell.some(Boolean))
+            || team.playDetails[playerIndex].some(Boolean)
+            || (replacement.undoSubstitution?.baseDataBefore
+                && JSON.stringify(team.baseData[playerIndex]) !== JSON.stringify(replacement.undoSubstitution.baseDataBefore));
+        if (hasRecordedAtBat) {
+            alert('新上场球员已有比赛记录，无法撤销换人；请先处理该球员的打席、垒包和详细记录。');
+            return;
+        }
+        if (!confirm(`撤销 ${replacement.name} 替换 ${original.name}？`)) return;
+
+        original.active = true;
+        original.removed = false;
+        replacement.active = false;
+        replacement.removed = true;
+        const positionsBefore = replacement.undoSubstitution?.positionsBefore;
+        if (Array.isArray(positionsBefore)) {
+            team.lineup.forEach((player, index) => {
+                if (positionsBefore[index] !== undefined) player.pos = canonicalPosition(positionsBefore[index]);
+            });
+        } else {
+            const previousPosition = original.pos;
+            const occupyingPlayer = team.lineup.find((player, index) => index !== playerIndex
+                && player.active !== false && !player.removed && canonicalPosition(player.pos) === canonicalPosition(previousPosition));
+            if (occupyingPlayer) occupyingPlayer.pos = replacement.pos;
+            original.pos = previousPosition;
+        }
+        team.defensiveAlignment = createAlignment(team.lineup);
+        if (selectedCell.teamIndex === teamIndex && selectedCell.playerIndex === playerIndex) {
+            selectedCell.playerIndex = replacement.replacesIndex;
+        }
+        renderAll();
+        updateKeypadTitle();
+        scheduleSave();
+    }
+
+    function removePlayer(teamIndex, playerIndex) {
+        const team = teams[teamIndex];
+        const player = team.lineup[playerIndex];
+        if (!player || player.isStarter === true || (!player.added && player.id <= gameConfig.playerCount)
+            || team.lineup.some(item => item.replacesIndex === playerIndex)) return;
+        if (team.gridData[playerIndex].some(cell => cell.some(Boolean)) || team.playDetails[playerIndex].some(Boolean)) {
+            alert('该球员已有比赛记录，请使用换人功能保留记录。');
+            return;
+        }
+        player.active = false;
+        player.removed = true;
         syncLineupIds(teamIndex);
+        team.defensiveAlignment = createAlignment(team.lineup);
 
         if (selectedCell.teamIndex === teamIndex) {
-            if (selectedCell.playerIndex >= team.lineup.length) {
-                selectedCell.playerIndex = team.lineup.length - 1;
-            } else if (selectedCell.playerIndex > playerIndex) {
-                selectedCell.playerIndex -= 1;
-            } else if (selectedCell.playerIndex === playerIndex) {
-                selectedCell.playerIndex = Math.min(playerIndex, team.lineup.length - 1);
-            }
+            if (selectedCell.playerIndex === playerIndex) selectedCell.playerIndex = getLineupEntries(team, true)[0].playerIndex;
         }
 
         renderAll();
@@ -2259,17 +2811,8 @@
     }
 
     function advanceSelectedCell() {
-        const team = teams[selectedCell.teamIndex];
-        selectedCell.slotIndex = 0;
-
-        if (selectedCell.playerIndex < team.lineup.length - 1) {
-            selectedCell.playerIndex += 1;
-        } else {
-            selectedCell.playerIndex = 0;
-            if (selectedCell.inningIndex < inningCount - 1) {
-                selectedCell.inningIndex += 1;
-            }
-        }
+        const next = getNextPlateAppearance(selectedCell.teamIndex, selectedCell.playerIndex, selectedCell.inningIndex);
+        if (next) selectedCell = { ...next, slotIndex: 0 };
     }
 
     function inputResult(result) {
@@ -2341,7 +2884,7 @@
                 });
             });
         });
-        return rows.sort((a, b) => a.inningIndex - b.inningIndex || a.teamIndex - b.teamIndex || a.playerIndex - b.playerIndex);
+        return rows.sort(comparePlayRows);
     }
 
     function getProgressRows() {
@@ -2365,7 +2908,7 @@
                 });
             });
         });
-        return rows.sort((a, b) => a.inningIndex - b.inningIndex || a.teamIndex - b.teamIndex || a.playerIndex - b.playerIndex);
+        return rows.sort(comparePlayRows);
     }
 
     function getResultDisplay(result) {
@@ -2415,7 +2958,7 @@
             const batterRecord = normalizeRunnerRecord(row.detail.runners?.batter);
             const batterScore = batterRecord.outcome === 'score' ? 1 : 0;
             group.events.push({
-                player: `#${batter?.id || row.playerIndex + 1} ${row.batter}`,
+                player: `${batter ? getOrderLabel(batter) : row.playerIndex + 1}棒 · ${row.batter}`,
                 text: result.label,
                 score: batterScore,
                 detail: row.detail.contactType || ''
@@ -2538,12 +3081,12 @@
             container.appendChild(panel);
 
             const tbody = document.getElementById(`stats-body-${teamIndex}`);
-            team.lineup.forEach((player, pIdx) => {
+            getLineupEntries(team).forEach(({ player, playerIndex: pIdx }) => {
                 const stat = calculateStats(team, pIdx);
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${player.id}</td>
-                    <td><strong>${player.name}</strong></td>
+                    <td>${getOrderLabel(player)}</td>
+                    <td><strong>${escapeHtml(player.name)}</strong>${player.active === false ? '<small style="display:block;color:#64748b;">已换下</small>' : ''}</td>
                     <td>${stat.pa}</td>
                     <td>${stat.ab}</td>
                     <td>${stat.h}</td>
